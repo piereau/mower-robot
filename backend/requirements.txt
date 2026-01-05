@@ -1,0 +1,16 @@
+# RoboMower Backend Dependencies
+
+# Web framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# Data validation
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# WebSocket support (included in uvicorn[standard])
+websockets==13.1
+
+# Development
+python-dotenv==1.0.1
+
