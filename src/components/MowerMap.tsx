@@ -2,7 +2,7 @@
  * Interactive map component showing parcels, zones, and robot position.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
 type Pt = { x: number; y: number };
@@ -58,7 +58,7 @@ const MOCK_MAP: MapData = {
       id: "zone-a",
       type: "mow",
       name: "Zone A",
-      color: "#2DD4BF",
+      color: "#00DC8C",
       points: [
         { x: 160, y: 190 },
         { x: 520, y: 180 },
@@ -71,7 +71,7 @@ const MOCK_MAP: MapData = {
       id: "zone-b",
       type: "mow",
       name: "Zone B",
-      color: "#60A5FA",
+      color: "#155DFC",
       points: [
         { x: 520, y: 180 },
         { x: 880, y: 170 },
@@ -83,7 +83,7 @@ const MOCK_MAP: MapData = {
       id: "nog-1",
       type: "noGo",
       name: "No-Go",
-      color: "#FB7185",
+      color: "#FB2C36",
       points: [
         { x: 640, y: 520 },
         { x: 740, y: 500 },
@@ -223,156 +223,153 @@ export function MowerMap({ zoneName, onBack }: MowerMapProps) {
     }
   };
 
-  const resetView = () => {
-    const el = containerRef.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    const s = Math.min(width / map.width, height / map.height) * 0.9;
-    setScale(s);
-    setTx((width - map.width * s) / 2);
-    setTy((height - map.height * s) / 2);
-  };
-
-  const viewBox = useMemo(() => `0 0 ${map.width} ${map.height}`, [map.width, map.height]);
-
   return (
-    <div className="min-h-screen bg-[#d9e7f3] flex justify-center">
-      <div className="w-full max-w-md px-5 py-6">
-        {/* Header with back button */}
-        <div className="mb-4 flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="flex items-center justify-center w-10 h-10 rounded-xl bg-white shadow-sm"
-          >
-            <ArrowLeft size={20} className="text-black" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-semibold text-black">{zoneName}</h1>
-            <p className="text-sm text-black/50">Carte de la parcelle</p>
-          </div>
-        </div>
-
-        {/* Map container */}
-        <div
-          ref={containerRef}
-          onWheel={onWheel}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          className="relative h-[520px] w-full touch-none overflow-hidden rounded-2xl bg-slate-50 shadow-sm ring-1 ring-slate-200"
+    <div className="w-full max-w-md min-h-screen bg-[#d9e7f3] px-5 py-6">
+      {/* Header with back button */}
+      <div className="mb-4 flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="flex items-center justify-center w-10 h-10 rounded-xl bg-white shadow-sm"
         >
-          {/* UI overlay */}
-          <div className="pointer-events-none absolute left-3 top-3 rounded-xl bg-white/80 px-3 py-2 text-xs text-slate-700 backdrop-blur">
-            <div className="font-medium">Mapping</div>
-            <div className="text-slate-500">Zoom: {(scale * 100).toFixed(0)}%</div>
-          </div>
+          <ArrowLeft size={20} className="text-black" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-semibold text-black">{zoneName}</h1>
+          <p className="text-sm text-black/50">Carte de la parcelle</p>
+        </div>
+      </div>
 
-          <svg className="h-full w-full">
-            <g transform={`translate(${tx} ${ty}) scale(${scale})`}>
-              {/* Background grid */}
-              <defs>
-                <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                  <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(148,163,184,0.25)" strokeWidth="1" />
-                </pattern>
-                <clipPath id="parcelClip">
-                  <polygon points={ptsToString(map.parcel)} />
-                </clipPath>
-              </defs>
-
-              <rect x="0" y="0" width={map.width} height={map.height} fill="url(#grid)" />
-
-              {/* Parcel outline */}
-              <polygon
-                points={ptsToString(map.parcel)}
-                fill="#FFFFFF"
-                stroke="rgba(15,23,42,0.25)"
-                strokeWidth="6"
-                strokeLinejoin="round"
-              />
-
-              {/* Zones */}
-              <g clipPath="url(#parcelClip)">
-                {map.zones
-                  .filter((z) => z.type === "mow")
-                  .map((z) => (
-                    <polygon
-                      key={z.id}
-                      points={ptsToString(z.points)}
-                      fill={z.color}
-                      opacity={0.55}
-                      stroke="rgba(15,23,42,0.15)"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                    />
-                  ))}
-
-                {map.zones
-                  .filter((z) => z.type === "noGo")
-                  .map((z) => (
-                    <polygon
-                      key={z.id}
-                      points={ptsToString(z.points)}
-                      fill={z.color}
-                      opacity={0.65}
-                      stroke="rgba(15,23,42,0.2)"
-                      strokeWidth="2"
-                      strokeDasharray="10 8"
-                      strokeLinejoin="round"
-                    />
-                  ))}
-              </g>
-
-              {/* Robot marker */}
-              <g transform={`translate(${robot.x} ${robot.y}) rotate(${(robot.headingRad * 180) / Math.PI})`}>
-                <circle r="14" fill="white" stroke="rgba(15,23,42,0.25)" strokeWidth="3" />
-                <path
-                  d="M 0 -20 L 6 -8 L -6 -8 Z"
-                  fill="rgba(59,130,246,0.95)"
-                  stroke="rgba(15,23,42,0.15)"
-                  strokeWidth="1"
-                />
-                <circle r="3" fill="rgba(59,130,246,0.95)" />
-              </g>
-            </g>
-          </svg>
-
-          {/* Controls */}
-          <div className="absolute bottom-3 left-3 flex gap-2">
-            <button
-              className="rounded-xl bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 active:bg-slate-50"
-              onClick={() => setScale((s) => clamp(s * 1.15, 0.25, 3.5))}
-            >
-              +
-            </button>
-            <button
-              className="rounded-xl bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 active:bg-slate-50"
-              onClick={() => setScale((s) => clamp(s / 1.15, 0.25, 3.5))}
-            >
-              −
-            </button>
-            <button
-              className="rounded-xl bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 active:bg-slate-50"
-              onClick={resetView}
-            >
-              Reset
-            </button>
-          </div>
+      {/* Map container */}
+      <div
+        ref={containerRef}
+        onWheel={onWheel}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        className="relative h-[480px] w-full touch-none overflow-hidden rounded-2xl  ring-1 ring-slate-200"
+      >
+        {/* UI overlay */}
+        <div className="pointer-events-none absolute left-3 top-3 rounded-xl bg-white/80 px-3 py-2 text-xs text-slate-700 backdrop-blur">
+          <div className="font-medium">Mapping</div>
+          <div className="text-slate-500">Zoom: {(scale * 100).toFixed(0)}%</div>
         </div>
 
-        {/* Zone legend */}
-        <div className="mt-4 flex flex-wrap gap-3">
-          {map.zones.map((zone) => (
-            <div key={zone.id} className="flex items-center gap-2">
-              <div
-                className="w-4 h-4 rounded"
-                style={{ backgroundColor: zone.color, opacity: zone.type === "noGo" ? 0.65 : 0.55 }}
+        <svg className="h-full w-full">
+          <g transform={`translate(${tx} ${ty}) scale(${scale})`}>
+            {/* Background grid - more visible */}
+            <defs>
+              <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(100, 116, 139, 0.2)" strokeWidth="1" />
+              </pattern>
+              <clipPath id="parcelClip">
+                <polygon points={ptsToString(map.parcel)} />
+              </clipPath>
+            </defs>
+
+            {/* Extended grid to appear infinite */}
+            <rect x={-map.width * 2} y={-map.height * 2} width={map.width * 5} height={map.height * 5} fill="url(#grid)" />
+
+            {/* Parcel outline */}
+            <polygon
+              points={ptsToString(map.parcel)}
+              fill="#FFFFFF"
+              stroke="rgba(15,23,42,0.25)"
+              strokeWidth="6"
+              strokeLinejoin="round"
+            />
+
+            {/* Zones */}
+            <g clipPath="url(#parcelClip)">
+              {map.zones
+                .filter((z) => z.type === "mow")
+                .map((z) => (
+                  <polygon
+                    key={z.id}
+                    points={ptsToString(z.points)}
+                    fill={z.color}
+                    opacity={0.85}
+                    stroke="rgba(15,23,42,0.25)"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+                ))}
+
+              {map.zones
+                .filter((z) => z.type === "noGo")
+                .map((z) => (
+                  <polygon
+                    key={z.id}
+                    points={ptsToString(z.points)}
+                    fill={z.color}
+                    opacity={0.9}
+                    stroke="rgba(15,23,42,0.3)"
+                    strokeWidth="2"
+                    strokeDasharray="10 8"
+                    strokeLinejoin="round"
+                  />
+                ))}
+            </g>
+
+            {/* Robot marker */}
+            <g transform={`translate(${robot.x} ${robot.y}) rotate(${(robot.headingRad * 180) / Math.PI})`}>
+              <circle r="14" fill="white" stroke="rgba(15,23,42,0.25)" strokeWidth="3" />
+              <path
+                d="M 0 -20 L 6 -8 L -6 -8 Z"
+                fill="rgba(59,130,246,0.95)"
+                stroke="rgba(15,23,42,0.15)"
+                strokeWidth="1"
               />
-              <span className="text-sm text-black/70">{zone.name}</span>
+              <circle r="3" fill="rgba(59,130,246,0.95)" />
+            </g>
+          </g>
+        </svg>
+
+      </div>
+
+      {/* Zone legend */}
+      <div className="mt-4 flex flex-wrap gap-3">
+        {map.zones.map((zone) => (
+          <div key={zone.id} className="flex items-center gap-2">
+            <div
+              className="w-4 h-4 rounded"
+              style={{ backgroundColor: zone.color, opacity: zone.type === "noGo" ? 0.9 : 0.85 }}
+            />
+            <span className="text-sm text-black/70">{zone.name}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Stats section */}
+      <div className="mt-6 bg-[#f0f5fa] rounded-2xl p-5">
+        {/* Unschedule button */}
+        <button className="w-full bg-black text-white rounded-xl py-4 px-6 flex items-center justify-center gap-3 font-medium text-lg">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+            <line x1="8" y1="5" x2="8" y2="19" />
+            <line x1="16" y1="5" x2="16" y2="19" />
+          </svg>
+          Unschedule
+        </button>
+
+        {/* Stats row */}
+        <div className="mt-6 flex justify-around">
+          {/* Surface */}
+          <div className="text-center">
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-5xl font-semibold text-black">300</span>
+              <span className="text-xl text-black">m²</span>
             </div>
-          ))}
+            <p className="text-sm text-black/50 mt-1">Surface totale</p>
+          </div>
+
+          {/* Duration */}
+          <div className="text-center">
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-5xl font-semibold text-black">1h20</span>
+            </div>
+            <p className="text-sm text-black/50 mt-1">Durée estimée</p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

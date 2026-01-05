@@ -27,9 +27,9 @@ export function BatteryIndicator({ level }: BatteryIndicatorProps) {
   const colorClass = getBatteryColor(clampedLevel);
   
   return (
-    <div className="flex items-end">
-      <Icon size={32} className={`-rotate-90 ${colorClass}`} />
-      <span className={`text-[24px] font-medium tracking-tight w-[50px] ${colorClass}`}>
+    <div className="flex items-center gap-1">
+      <Icon size={28} className={`-rotate-90 ${colorClass}`} />
+      <span className={`text-[24px] font-medium tracking-tight ${colorClass}`}>
         {clampedLevel}%
       </span>
     </div>

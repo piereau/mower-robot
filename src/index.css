@@ -2,13 +2,21 @@
 
 /* Custom theme - matching Figma design */
 @theme {
-  --color-background: #d9e7f3;
+  --color-app-bg: #d9e7f3;
   --font-sf-pro: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Base styles */
 body {
-  background-color: #d9e7f3;
+  /* Diagonal stripes pattern for unavailable zone */
+  background-color: #f1f5f9;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    #EBEBEB 8px,
+    #EBEBEB 11px
+  );
   color: #000;
   font-family: var(--font-sf-pro);
   -webkit-font-smoothing: antialiased;
@@ -24,4 +32,5 @@ html, body, #root {
 #root {
   display: flex;
   flex-direction: column;
+  align-items: center;
 }
