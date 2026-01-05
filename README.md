@@ -8,16 +8,69 @@ Mobile-first web application for monitoring and controlling an autonomous lawn m
 
 ## Table of Contents
 
-1. [Project Overview](#project-overview)
-2. [POC Scope](#poc-scope)
-3. [Technical Stack](#technical-stack)
-4. [Architecture](#architecture)
-5. [API Contracts](#api-contracts)
-6. [Project Structure](#project-structure)
-7. [Development Guidelines](#development-guidelines)
-8. [UI/UX Guidelines](#uiux-guidelines)
-9. [Getting Started](#getting-started)
+1. [Getting Started](#getting-started)
+2. [Project Overview](#project-overview)
+3. [POC Scope](#poc-scope)
+4. [Technical Stack](#technical-stack)
+5. [Architecture](#architecture)
+6. [API Contracts](#api-contracts)
+7. [Project Structure](#project-structure)
+8. [Development Guidelines](#development-guidelines)
+9. [UI/UX Guidelines](#uiux-guidelines)
 10. [Roadmap](#roadmap)
+
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- pnpm
+- Python 3.11+
+
+### Frontend Setup
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start dev server
+pnpm dev
+```
+
+### Backend Setup
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Environment Variables
+
+**Frontend (`.env`):**
+
+```env
+VITE_WS_URL=ws://localhost:8000/ws/robot
+VITE_API_URL=http://localhost:8000
+```
+
+**Backend (`.env`):**
+
+```env
+SIMULATION_INTERVAL=2.0
+USE_MOCK_GPIO=true
+```
 
 ---
 
@@ -432,58 +485,6 @@ The UI is inspired by the reference design (`dashboard.png`) — clean, card-bas
 | 50-100% | Green (`text-emerald-500`) |
 | 20-49% | Amber (`text-amber-500`) |
 | 0-19% | Red (`text-red-500`) |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm
-- Python 3.11+
-
-### Frontend Setup
-
-```bash
-# Install dependencies
-pnpm install
-
-# Start dev server
-pnpm dev
-```
-
-### Backend Setup
-
-```bash
-cd backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Environment Variables
-
-**Frontend (`.env`):**
-
-```env
-VITE_WS_URL=ws://localhost:8000/ws/robot
-VITE_API_URL=http://localhost:8000
-```
-
-**Backend (`.env`):**
-
-```env
-SIMULATION_INTERVAL=2.0
-USE_MOCK_GPIO=true
-```
 
 ---
 
