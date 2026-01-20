@@ -2,6 +2,7 @@
  * Main dashboard page - Figma design implementation.
  */
 
+import { useState } from 'react';
 import { useRobotTelemetry } from '../hooks/useRobotTelemetry';
 import { RobotImage } from '../components/RobotImage';
 import { StatusIndicator } from '../components/StatusIndicator';
@@ -10,10 +11,9 @@ import { LocationIndicator } from '../components/LocationIndicator';
 import { AutonomyIndicator } from '../components/AutonomyIndicator';
 import { ScheduleCard } from '../components/ScheduleCard';
 import { ConnectionStatus } from '../components/ConnectionStatus';
-import { Joystick } from '../components/Joystick';
+import { ControlPanel } from '../components/ControlPanel';
 import { Loader2 } from 'lucide-react';
 import { deriveDisplayStatus } from '../types/telemetry';
-import { useRobotControl } from '../hooks/useRobotControl';
 
 type Schedule = {
   zone: string;
@@ -28,7 +28,8 @@ interface DashboardProps {
 
 export function Dashboard({ schedules, onZoneClick, onScheduleClick }: DashboardProps) {
   const { telemetry, connectionState } = useRobotTelemetry();
-  const { sendJoystick, stop } = useRobotControl();
+  const [activeTab, setActiveTab] = useState<'monitor' | 'control'>('monitor');
+  const cameraUrl = import.meta.env.VITE_CAMERA_URL || 'http://localhost:8000/camera/stream';
   
   const showOfflineOverlay = connectionState === 'disconnected';
   
@@ -45,78 +46,95 @@ export function Dashboard({ schedules, onZoneClick, onScheduleClick }: Dashboard
         <ConnectionStatus state={connectionState} />
       </div>
       
-      {/* Robot image section */}
-      <div className="pt-4">
-        <RobotImage />
-      </div>
-      
-      {/* Status section */}
-      <div className="space-y-3 mb-12">
-        {telemetry && displayStatus ? (
-          <>
-            {/* Status + Battery row */}
-            <div className="flex items-center justify-between">
-              <StatusIndicator status={displayStatus} />
-              <BatteryIndicator level={telemetry.battery} />
-            </div>
-            
-            {/* Location + Autonomy row */}
-            <div className="flex items-center justify-between">
-              <LocationIndicator location={location} />
-              <AutonomyIndicator batteryLevel={telemetry.battery} />
-            </div>
-          </>
-        ) : (
-          /* Loading state */
-          <div className="flex items-center gap-2 text-black/50">
-            <Loader2 size={32} className="animate-spin" />
-            <span className="text-[32px] font-medium tracking-tight">
-              Connexion...
-            </span>
+      {activeTab === 'monitor' && (
+        <>
+          {/* Robot image section */}
+          <div className="pt-2">
+            <RobotImage />
           </div>
-        )}
-      </div>
 
-      {/* Joystick control */}
-      <div className="space-y-3 mb-10">
-        <h2 className="text-[28px] font-medium tracking-tight text-black">
-          Joystick
-        </h2>
-        <Joystick
-          onMove={sendJoystick}
-          onEnd={stop}
-          disabled={connectionState !== 'connected'}
-        />
-        <p className="text-sm text-black/60 text-center">
-          Haut = avance, bas = recule, gauche/droite = tourne.
-        </p>
-      </div>
-      
-      {/* Schedule section */}
-      <div className="space-y-4">
-        <h2 className="text-[32px] font-medium tracking-tight text-black">
-          Prochaines tontes
-        </h2>
-        
-        <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
-          {/* Add schedule button */}
-          <button 
-            onClick={onScheduleClick}
-            className="bg-white rounded-xl p-3 flex flex-col items-center justify-center min-w-[120px] min-h-[100px] active:scale-[0.98] transition-transform border-2 border-dashed border-black/20"
-          >
-            <span className="text-[32px] text-black/40">+</span>
-            <span className="text-[16px] font-medium text-black/60">Planifier</span>
-          </button>
-          
-          {schedules.map((schedule, index) => (
-            <ScheduleCard 
-              key={index} 
-              zone={schedule.zone} 
-              time={schedule.time}
-              onClick={() => onZoneClick?.(schedule.zone)}
-            />
-          ))}
-        </div>
+          {/* Status section */}
+          <div className="space-y-3 mb-12">
+            {telemetry && displayStatus ? (
+              <>
+                {/* Status + Battery row */}
+                <div className="flex items-center justify-between">
+                  <StatusIndicator status={displayStatus} />
+                  <BatteryIndicator level={telemetry.battery} />
+                </div>
+
+                {/* Location + Autonomy row */}
+                <div className="flex items-center justify-between">
+                  <LocationIndicator location={location} />
+                  <AutonomyIndicator batteryLevel={telemetry.battery} />
+                </div>
+              </>
+            ) : (
+              /* Loading state */
+              <div className="flex items-center gap-2 text-black/50">
+                <Loader2 size={32} className="animate-spin" />
+                <span className="text-[32px] font-medium tracking-tight">
+                  Connexion...
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Schedule section */}
+          <div className="space-y-4">
+            <h2 className="text-[32px] font-medium tracking-tight text-black">
+              Prochaines tontes
+            </h2>
+
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+              {/* Add schedule button */}
+              <button
+                onClick={onScheduleClick}
+                className="bg-white rounded-xl p-3 flex flex-col items-center justify-center min-w-[120px] min-h-[100px] active:scale-[0.98] transition-transform border-2 border-dashed border-black/20"
+              >
+                <span className="text-[32px] text-black/40">+</span>
+                <span className="text-[16px] font-medium text-black/60">Planifier</span>
+              </button>
+
+              {schedules.map((schedule, index) => (
+                <ScheduleCard
+                  key={index}
+                  zone={schedule.zone}
+                  time={schedule.time}
+                  onClick={() => onZoneClick?.(schedule.zone)}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'control' && (
+        <ControlPanel cameraUrl={cameraUrl} />
+      )}
+
+      {/* Tabs */}
+      <div className="mt-8 mb-6 flex gap-2 rounded-full bg-white/70 p-1 shadow-sm">
+        <button
+          onClick={() => setActiveTab('monitor')}
+          className={`flex-1 rounded-full py-2 text-sm font-medium ${
+            activeTab === 'monitor'
+              ? 'bg-black text-white'
+              : 'text-black/70'
+          }`}
+        >
+          Monitor
+        </button>
+        <button
+          onClick={() => setActiveTab('control')}
+          className={`flex-1 rounded-full py-2 text-sm font-medium ${
+            activeTab === 'control'
+              ? 'bg-black text-white'
+              : 'text-black/70'
+          }`}
+        >
+          Control
+        </button>
       </div>
       
       {/* Offline overlay */}

@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     use_mock_motor_controller: bool = True  # Use mock motor controller by default
     serial_port: str = "/dev/ttyUSB0"
     serial_baud: int = 115200
+
+    # Camera settings
+    use_mock_camera: bool = True  # Use mock camera stream by default
+    camera_width: int = 640
+    camera_height: int = 480
+    camera_fps: int = 15
     
     # Server settings
     host: str = "0.0.0.0"

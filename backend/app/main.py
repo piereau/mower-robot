@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.camera import router as camera_router
 from .api.health import router as health_router
 from .api.robot import router as robot_router
 from .ws.robot import router as ws_router, broadcast_telemetry
@@ -66,6 +67,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health_router, tags=["Health"])
 app.include_router(robot_router, tags=["Robot"])
+app.include_router(camera_router, tags=["Camera"])
 app.include_router(ws_router, tags=["WebSocket"])
 
 

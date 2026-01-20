@@ -3,7 +3,9 @@ set -euo pipefail
 
 # Deploy backend code to the RPI and restart the service.
 # Usage:
-#   RPI_HOST=192.168.1.50 RPI_USER=pi ./deploy.sh
+#   RPI_HOST=192.168.1.28 RPI_USER=pi ./embedded/RPI/deploy.sh
+
+
 
 RPI_HOST="${RPI_HOST:?RPI_HOST is required}"
 RPI_USER="${RPI_USER:-pi}"

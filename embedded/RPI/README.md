@@ -23,7 +23,20 @@
 ### Frontend (sur le PC)
 Utilise la WebSocket de la RPI :
 - `VITE_WS_URL=ws://<IP_RPI>:8000/ws/robot`
+
+Utilise le flux caméra de la RPI :
+- `VITE_CAMERA_URL=http://<IP_RPI>:8000/camera/stream`
+
 (192.168.1.28)
+
+### Caméra RPI (RPI Cam 2.1)
+1. Installer libcamera (si nécessaire) :
+   - `sudo apt update && sudo apt install -y libcamera-apps`
+2. Tester la caméra :
+   - `rpicam-hello`
+3. Activer le flux dans le backend :
+   - Dans `/home/pi/mower-robot/backend/.env` :
+     - `USE_MOCK_CAMERA=false`
 
 ### Protocole série Arduino
 Le backend envoie :
