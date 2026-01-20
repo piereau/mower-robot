@@ -1,0 +1,13 @@
+[Unit]
+Description=RoboMower backend (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/mower-roboto/backend
+ExecStart=/home/pi/mower-roboto/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

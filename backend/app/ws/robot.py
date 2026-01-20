@@ -1,11 +1,14 @@
 """WebSocket endpoint for real-time robot telemetry."""
 
 import asyncio
+import json
 import logging
-from typing import Set
+from typing import Any, Dict, Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from ..control.service import get_command_service
+from ..domain.models import RobotDriveCommand
 from ..settings import settings
 from ..simulation.telemetry import get_simulator
 
@@ -69,6 +72,8 @@ async def robot_telemetry_ws(websocket: WebSocket) -> None:
     initial_telemetry = simulator.get_telemetry()
     await websocket.send_text(initial_telemetry.model_dump_json())
     
+    command_service = get_command_service()
+
     try:
         # Keep connection alive and handle any client messages
         while True:
@@ -79,6 +84,15 @@ async def robot_telemetry_ws(websocket: WebSocket) -> None:
             # Echo back pings for connection health
             if data == "ping":
                 await websocket.send_text("pong")
+                continue
+
+            payload = _parse_json_message(data)
+            if not payload:
+                continue
+
+            message_type = payload.get("type")
+            if message_type == "control":
+                _handle_control_message(payload, command_service)
     
     except WebSocketDisconnect:
         logger.info(f"WebSocket client disconnected: {client_host}")
@@ -86,4 +100,26 @@ async def robot_telemetry_ws(websocket: WebSocket) -> None:
         logger.error(f"WebSocket error: {e}")
     finally:
         connected_clients.discard(websocket)
+        command_service.stop()
+
+
+def _parse_json_message(data: str) -> Dict[str, Any] | None:
+    try:
+        return json.loads(data)
+    except json.JSONDecodeError:
+        logger.debug("Ignoring non-JSON message")
+        return None
+
+
+def _handle_control_message(payload: Dict[str, Any], command_service) -> None:
+    try:
+        command = RobotDriveCommand(
+            left=payload.get("left", 0.0),
+            right=payload.get("right", 0.0),
+        )
+    except Exception as exc:
+        logger.warning("Invalid control payload: %s", exc)
+        return
+
+    command_service.apply_drive_command(command)
 

@@ -28,3 +28,27 @@ class RobotTelemetry(BaseModel):
             datetime: lambda v: v.isoformat() + "Z"
         }
 
+
+class RobotDriveCommand(BaseModel):
+    """Drive command for differential motors."""
+
+    left: float = Field(
+        ge=-1.0,
+        le=1.0,
+        description="Left motor speed (-1.0 to 1.0)"
+    )
+    right: float = Field(
+        ge=-1.0,
+        le=1.0,
+        description="Right motor speed (-1.0 to 1.0)"
+    )
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Timestamp when the command was created"
+    )
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() + "Z"
+        }
+

@@ -80,6 +80,18 @@ export class WSClient {
     }
   }
 
+  /**
+   * Send a JSON payload over the WebSocket.
+   */
+  sendJSON(payload: Record<string, unknown>): boolean {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(payload));
+      return true;
+    }
+
+    return false;
+  }
+
   private setupEventHandlers(): void {
     if (!this.ws) return;
 

@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     
     # Hardware settings
     use_mock_gpio: bool = True  # Use mock GPIO for development
+
+    # Motor control settings
+    use_mock_motor_controller: bool = True  # Use mock motor controller by default
+    serial_port: str = "/dev/ttyUSB0"
+    serial_baud: int = 115200
     
     # Server settings
     host: str = "0.0.0.0"

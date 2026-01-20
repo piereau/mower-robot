@@ -1,25 +1,10 @@
 /**
- * Interactive map component showing parcels, zones, and robot position.
+ * Interactive vineyard map component showing rows and corridors.
+ * Rows are numbered (1, 2, 3...), corridors are lettered (A, B, C...).
  */
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-
-type Pt = { x: number; y: number };
-type Zone = {
-  id: string;
-  type: "mow" | "noGo";
-  name?: string;
-  color: string;
-  points: Pt[];
-};
-
-type MapData = {
-  width: number;
-  height: number;
-  parcel: Pt[];
-  zones: Zone[];
-};
 
 type RobotState = {
   x: number;
@@ -27,72 +12,82 @@ type RobotState = {
   headingRad: number;
 };
 
-function ptsToString(points: Pt[]) {
-  return points.map((p) => `${p.x},${p.y}`).join(" ");
-}
-
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v));
-}
-
-// Simple path: robot moves along these points in a loop
-const PATH: Pt[] = [
-  { x: 180, y: 220 },
-  { x: 820, y: 240 },
-  { x: 780, y: 760 },
-  { x: 260, y: 820 },
-  { x: 180, y: 220 },
-];
-
-const MOCK_MAP: MapData = {
-  width: 1000,
-  height: 1000,
-  parcel: [
-    { x: 120, y: 160 },
-    { x: 900, y: 150 },
-    { x: 860, y: 860 },
-    { x: 160, y: 900 },
-  ],
-  zones: [
-    {
-      id: "zone-a",
-      type: "mow",
-      name: "Zone A",
-      color: "#00DC8C",
-      points: [
-        { x: 160, y: 190 },
-        { x: 520, y: 180 },
-        { x: 520, y: 620 },
-        { x: 220, y: 720 },
-        { x: 160, y: 520 },
-      ],
-    },
-    {
-      id: "zone-b",
-      type: "mow",
-      name: "Zone B",
-      color: "#155DFC",
-      points: [
-        { x: 520, y: 180 },
-        { x: 880, y: 170 },
-        { x: 840, y: 680 },
-        { x: 520, y: 620 },
-      ],
-    },
-    {
-      id: "nog-1",
-      type: "noGo",
-      name: "No-Go",
-      color: "#FB2C36",
-      points: [
-        { x: 640, y: 520 },
-        { x: 740, y: 500 },
-        { x: 770, y: 610 },
-        { x: 660, y: 640 },
-      ],
-    },
-  ],
+// Map configuration
+const MAP_CONFIG = {
+  width: 400,
+  height: 500,
+  rowCount: 8,
+  rowSpacing: 40,
+  rowStartX: 60,
+  rowTopY: 50,
+  rowHeight: 380,
 };
+
+// Generate row positions
+function generateRows(config: typeof MAP_CONFIG) {
+  const rows = [];
+  for (let i = 0; i < config.rowCount; i++) {
+    rows.push({
+      id: i + 1,
+      x: config.rowStartX + i * config.rowSpacing,
+    });
+  }
+  return rows;
+}
+
+// Generate corridor labels (between rows)
+function generateCorridors(config: typeof MAP_CONFIG) {
+  const corridors = [];
+  for (let i = 0; i < config.rowCount - 1; i++) {
+    corridors.push({
+      id: String.fromCharCode(65 + i), // A, B, C...
+      x: config.rowStartX + i * config.rowSpacing + config.rowSpacing / 2,
+      active: i < 3, // First 3 corridors are active (being mowed)
+    });
+  }
+  return corridors;
+}
+
+// Robot path through corridors (continuous serpentine pattern)
+function generateRobotPath(config: typeof MAP_CONFIG) {
+  const path: { x: number; y: number }[] = [];
+  
+  // Build a continuous serpentine path through corridors A, B, C
+  // Forward: A (down) -> B (up) -> C (down)
+  // Return: C (up) -> B (down) -> A (up)
+  
+  const getCorridorX = (i: number) => 
+    config.rowStartX + i * config.rowSpacing + config.rowSpacing / 2;
+  
+  const top = config.rowTopY;
+  const bottom = config.rowTopY + config.rowHeight;
+  
+  // Forward pass: A (down) -> B (up) -> C (down)
+  // Start at top of A
+  path.push({ x: getCorridorX(0), y: top });
+  path.push({ x: getCorridorX(0), y: bottom }); // End A at bottom
+  
+  path.push({ x: getCorridorX(1), y: bottom }); // Move to B at bottom
+  path.push({ x: getCorridorX(1), y: top }); // Go up B to top
+  
+  path.push({ x: getCorridorX(2), y: top }); // Move to C at top
+  path.push({ x: getCorridorX(2), y: bottom }); // Go down C to bottom
+  
+  // Return pass: C (up) -> B (down) -> A (up)
+  path.push({ x: getCorridorX(2), y: top }); // Go up C to top
+  
+  path.push({ x: getCorridorX(1), y: top }); // Move to B at top
+  path.push({ x: getCorridorX(1), y: bottom }); // Go down B to bottom
+  
+  path.push({ x: getCorridorX(0), y: bottom }); // Move to A at bottom
+  path.push({ x: getCorridorX(0), y: top }); // Go up A to top (back to start)
+  
+  return path;
+}
+
+const ROWS = generateRows(MAP_CONFIG);
+const CORRIDORS = generateCorridors(MAP_CONFIG);
+const ROBOT_PATH = generateRobotPath(MAP_CONFIG);
 
 interface MowerMapProps {
   zoneName: string;
@@ -100,18 +95,16 @@ interface MowerMapProps {
 }
 
 export function MowerMap({ zoneName, onBack }: MowerMapProps) {
-  const map = MOCK_MAP;
-
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = useState(0.6);
+  const [scale, setScale] = useState(1);
   const [tx, setTx] = useState(0);
   const [ty, setTy] = useState(0);
 
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
 
-  // Robot sim
-  const [robot, setRobot] = useState<RobotState>({ x: PATH[0].x, y: PATH[0].y, headingRad: 0 });
+  // Robot simulation
+  const [robot, setRobot] = useState<RobotState>({ x: ROBOT_PATH[0].x, y: ROBOT_PATH[0].y, headingRad: Math.PI / 2 });
   const simRef = useRef<{ seg: number; t: number }>({ seg: 0, t: 0 });
 
   // Center content on mount
@@ -120,14 +113,14 @@ export function MowerMap({ zoneName, onBack }: MowerMapProps) {
     if (!el) return;
     const { width, height } = el.getBoundingClientRect();
 
-    const s = Math.min(width / map.width, height / map.height) * 0.9;
+    const s = Math.min(width / MAP_CONFIG.width, height / MAP_CONFIG.height) * 0.95;
     setScale(s);
 
-    const centeredTx = (width - map.width * s) / 2;
-    const centeredTy = (height - map.height * s) / 2;
+    const centeredTx = (width - MAP_CONFIG.width * s) / 2;
+    const centeredTy = (height - MAP_CONFIG.height * s) / 2;
     setTx(centeredTx);
     setTy(centeredTy);
-  }, [map.width, map.height]);
+  }, []);
 
   // Robot animation loop
   useEffect(() => {
@@ -138,13 +131,13 @@ export function MowerMap({ zoneName, onBack }: MowerMapProps) {
       const dt = (now - last) / 1000;
       last = now;
 
-      const speed = 160;
+      const speed = 80;
       const st = simRef.current;
       let seg = st.seg;
       let t = st.t;
 
-      const a = PATH[seg];
-      const b = PATH[seg + 1] ?? PATH[0];
+      const a = ROBOT_PATH[seg];
+      const b = ROBOT_PATH[seg + 1] ?? ROBOT_PATH[0];
 
       const dx = b.x - a.x;
       const dy = b.y - a.y;
@@ -156,12 +149,14 @@ export function MowerMap({ zoneName, onBack }: MowerMapProps) {
 
       while (t >= 1) {
         t -= 1;
-        seg = (seg + 1) % (PATH.length - 1);
+        seg = (seg + 1) % (ROBOT_PATH.length - 1);
       }
 
-      const x = a.x + (b.x - a.x) * t;
-      const y = a.y + (b.y - a.y) * t;
-      const headingRad = Math.atan2(dy, dx);
+      const currA = ROBOT_PATH[seg];
+      const currB = ROBOT_PATH[seg + 1] ?? ROBOT_PATH[0];
+      const x = currA.x + (currB.x - currA.x) * t;
+      const y = currA.y + (currB.y - currA.y) * t;
+      const headingRad = Math.atan2(currB.y - currA.y, currB.x - currA.x);
 
       simRef.current = { seg, t };
       setRobot({ x, y, headingRad });
@@ -172,6 +167,9 @@ export function MowerMap({ zoneName, onBack }: MowerMapProps) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  // Pan/zoom handlers
+  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
   const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -186,7 +184,7 @@ export function MowerMap({ zoneName, onBack }: MowerMapProps) {
     const delta = -e.deltaY;
     const factor = Math.exp(delta * zoomIntensity);
 
-    const newScale = clamp(scale * factor, 0.25, 3.5);
+    const newScale = clamp(scale * factor, 0.5, 3);
 
     const worldX = (mx - tx) / scale;
     const worldY = (my - ty) / scale;
@@ -235,7 +233,7 @@ export function MowerMap({ zoneName, onBack }: MowerMapProps) {
         </button>
         <div>
           <h1 className="text-2xl font-semibold text-black">{zoneName}</h1>
-          <p className="text-sm text-black/50">Carte de la parcelle</p>
+          <p className="text-sm text-black/50">Carte des rangs</p>
         </div>
       </div>
 
@@ -246,108 +244,111 @@ export function MowerMap({ zoneName, onBack }: MowerMapProps) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        className="relative h-[480px] w-full touch-none overflow-hidden rounded-2xl  ring-1 ring-slate-200"
+        className="relative h-[480px] w-full touch-none overflow-hidden rounded-2xl bg-[#f0f4f8] ring-1 ring-slate-200"
       >
-        {/* UI overlay */}
-        <div className="pointer-events-none absolute left-3 top-3 rounded-xl bg-white/80 px-3 py-2 text-xs text-slate-700 backdrop-blur">
-          <div className="font-medium">Mapping</div>
-          <div className="text-slate-500">Zoom: {(scale * 100).toFixed(0)}%</div>
-        </div>
-
         <svg className="h-full w-full">
           <g transform={`translate(${tx} ${ty}) scale(${scale})`}>
-            {/* Background grid - more visible */}
+            {/* Active corridors (green glow) */}
+            {CORRIDORS.filter(c => c.active).map((corridor) => (
+              <rect
+                key={`corridor-glow-${corridor.id}`}
+                x={corridor.x - 12}
+                y={MAP_CONFIG.rowTopY}
+                width={24}
+                height={MAP_CONFIG.rowHeight}
+                rx={8}
+                fill="#00C950"
+                opacity={0.7}
+                filter="url(#corridorGlow)"
+              />
+            ))}
+
+            {/* Glow filter */}
             <defs>
-              <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(100, 116, 139, 0.2)" strokeWidth="1" />
-              </pattern>
-              <clipPath id="parcelClip">
-                <polygon points={ptsToString(map.parcel)} />
-              </clipPath>
+              <filter id="corridorGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
             </defs>
 
-            {/* Extended grid to appear infinite */}
-            <rect x={-map.width * 2} y={-map.height * 2} width={map.width * 5} height={map.height * 5} fill="url(#grid)" />
+            {/* Row lines (vineyard rows) */}
+            {ROWS.map((row) => (
+              <line
+                key={`row-${row.id}`}
+                x1={row.x}
+                y1={MAP_CONFIG.rowTopY}
+                x2={row.x}
+                y2={MAP_CONFIG.rowTopY + MAP_CONFIG.rowHeight}
+                stroke="#1e293b"
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
+            ))}
 
-            {/* Parcel outline */}
-            <polygon
-              points={ptsToString(map.parcel)}
-              fill="#FFFFFF"
-              stroke="rgba(15,23,42,0.25)"
-              strokeWidth="6"
-              strokeLinejoin="round"
-            />
+            {/* Row numbers (top) */}
+            {ROWS.map((row) => (
+              <text
+                key={`row-label-${row.id}`}
+                x={row.x}
+                y={MAP_CONFIG.rowTopY - 12}
+                textAnchor="middle"
+                className="text-xs font-medium fill-black"
+                style={{ fontSize: 14 }}
+              >
+                {row.id}
+              </text>
+            ))}
 
-            {/* Zones */}
-            <g clipPath="url(#parcelClip)">
-              {map.zones
-                .filter((z) => z.type === "mow")
-                .map((z) => (
-                  <polygon
-                    key={z.id}
-                    points={ptsToString(z.points)}
-                    fill={z.color}
-                    opacity={0.85}
-                    stroke="rgba(15,23,42,0.25)"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                  />
-                ))}
-
-              {map.zones
-                .filter((z) => z.type === "noGo")
-                .map((z) => (
-                  <polygon
-                    key={z.id}
-                    points={ptsToString(z.points)}
-                    fill={z.color}
-                    opacity={0.9}
-                    stroke="rgba(15,23,42,0.3)"
-                    strokeWidth="2"
-                    strokeDasharray="10 8"
-                    strokeLinejoin="round"
-                  />
-                ))}
-            </g>
+            {/* Corridor letters (bottom) */}
+            {CORRIDORS.map((corridor) => (
+              <text
+                key={`corridor-label-${corridor.id}`}
+                x={corridor.x}
+                y={MAP_CONFIG.rowTopY + MAP_CONFIG.rowHeight + 25}
+                textAnchor="middle"
+                className="text-xs font-medium fill-black"
+                style={{ fontSize: 14 }}
+              >
+                {corridor.id}
+              </text>
+            ))}
 
             {/* Robot marker */}
-            <g transform={`translate(${robot.x} ${robot.y}) rotate(${(robot.headingRad * 180) / Math.PI})`}>
-              <circle r="14" fill="white" stroke="rgba(15,23,42,0.25)" strokeWidth="3" />
+            <g transform={`translate(${robot.x} ${robot.y}) rotate(${(robot.headingRad * 180) / Math.PI + 90})`}>
+              <circle r="10" fill="white" stroke="rgba(15,23,42,0.3)" strokeWidth="2" />
               <path
-                d="M 0 -20 L 6 -8 L -6 -8 Z"
+                d="M 0 -14 L 4 -6 L -4 -6 Z"
                 fill="rgba(59,130,246,0.95)"
                 stroke="rgba(15,23,42,0.15)"
                 strokeWidth="1"
               />
-              <circle r="3" fill="rgba(59,130,246,0.95)" />
+              <circle r="2" fill="rgba(59,130,246,0.95)" />
             </g>
           </g>
         </svg>
 
-      </div>
-
-      {/* Zone legend */}
-      <div className="mt-4 flex flex-wrap gap-3">
-        {map.zones.map((zone) => (
-          <div key={zone.id} className="flex items-center gap-2">
-            <div
-              className="w-4 h-4 rounded"
-              style={{ backgroundColor: zone.color, opacity: zone.type === "noGo" ? 0.9 : 0.85 }}
-            />
-            <span className="text-sm text-black/70">{zone.name}</span>
+        {/* Legend overlay */}
+        <div className="absolute left-3 top-3 rounded-xl bg-white/90 px-3 py-2 text-xs backdrop-blur">
+          <div className="font-medium text-slate-800">Rangs de vignes</div>
+          <div className="text-slate-500 mt-1 flex items-center gap-2">
+            <span className="w-3 h-3 rounded bg-[#00C950]/70" />
+            <span>Couloirs en cours</span>
           </div>
-        ))}
+        </div>
       </div>
 
       {/* Stats section */}
       <div className="mt-6 bg-[#f0f5fa] rounded-2xl p-5">
-        {/* Unschedule button */}
+        {/* Déprogrammer button */}
         <button className="w-full bg-black text-white rounded-xl py-4 px-6 flex items-center justify-center gap-3 font-medium text-lg">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
             <line x1="8" y1="5" x2="8" y2="19" />
             <line x1="16" y1="5" x2="16" y2="19" />
           </svg>
-          Unschedule
+          Déprogrammer
         </button>
 
         {/* Stats row */}

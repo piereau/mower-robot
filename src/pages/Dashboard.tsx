@@ -10,8 +10,10 @@ import { LocationIndicator } from '../components/LocationIndicator';
 import { AutonomyIndicator } from '../components/AutonomyIndicator';
 import { ScheduleCard } from '../components/ScheduleCard';
 import { ConnectionStatus } from '../components/ConnectionStatus';
+import { Joystick } from '../components/Joystick';
 import { Loader2 } from 'lucide-react';
 import { deriveDisplayStatus } from '../types/telemetry';
+import { useRobotControl } from '../hooks/useRobotControl';
 
 type Schedule = {
   zone: string;
@@ -26,6 +28,7 @@ interface DashboardProps {
 
 export function Dashboard({ schedules, onZoneClick, onScheduleClick }: DashboardProps) {
   const { telemetry, connectionState } = useRobotTelemetry();
+  const { sendJoystick, stop } = useRobotControl();
   
   const showOfflineOverlay = connectionState === 'disconnected';
   
@@ -72,6 +75,21 @@ export function Dashboard({ schedules, onZoneClick, onScheduleClick }: Dashboard
             </span>
           </div>
         )}
+      </div>
+
+      {/* Joystick control */}
+      <div className="space-y-3 mb-10">
+        <h2 className="text-[28px] font-medium tracking-tight text-black">
+          Joystick
+        </h2>
+        <Joystick
+          onMove={sendJoystick}
+          onEnd={stop}
+          disabled={connectionState !== 'connected'}
+        />
+        <p className="text-sm text-black/60 text-center">
+          Haut = avance, bas = recule, gauche/droite = tourne.
+        </p>
       </div>
       
       {/* Schedule section */}
