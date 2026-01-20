@@ -1,5 +1,6 @@
 """Raspberry Pi camera stream using libcamera-vid."""
 
+import shutil
 import subprocess
 from typing import Iterator
 
@@ -30,8 +31,15 @@ class LibCameraStream(CameraStream):
     """MJPEG stream from libcamera-vid."""
 
     def frames(self) -> Iterator[bytes]:
+        cmd_name = shutil.which("libcamera-vid") or shutil.which("rpicam-vid")
+        if not cmd_name:
+            raise RuntimeError(
+                "Camera binary not found. Install libcamera apps "
+                "(libcamera-vid or rpicam-vid)."
+            )
+
         cmd = [
-            "libcamera-vid",
+            cmd_name,
             "--inline",
             "--codec",
             "mjpeg",

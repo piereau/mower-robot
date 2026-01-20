@@ -30,10 +30,11 @@ Utilise le flux caméra de la RPI :
 (192.168.1.28)
 
 ### Caméra RPI (RPI Cam 2.1)
-1. Installer libcamera (si nécessaire) :
+1. Installer les apps caméra (selon ta version d'OS) :
    - `sudo apt update && sudo apt install -y libcamera-apps`
+   - ou `sudo apt install -y rpicam-apps`
 2. Tester la caméra :
-   - `rpicam-hello`
+   - `rpicam-hello` (ou `libcamera-hello` si présent)
 3. Activer le flux dans le backend :
    - Dans `/home/pi/mower-robot/backend/.env` :
      - `USE_MOCK_CAMERA=false`
