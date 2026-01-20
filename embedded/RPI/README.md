@@ -23,6 +23,7 @@
 ### Frontend (sur le PC)
 Utilise la WebSocket de la RPI :
 - `VITE_WS_URL=ws://<IP_RPI>:8000/ws/robot`
+(192.168.1.28)
 
 ### Protocole série Arduino
 Le backend envoie :
