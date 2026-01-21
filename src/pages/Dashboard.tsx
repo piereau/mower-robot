@@ -29,7 +29,25 @@ interface DashboardProps {
 export function Dashboard({ schedules, onZoneClick, onScheduleClick }: DashboardProps) {
   const { telemetry, connectionState } = useRobotTelemetry();
   const [activeTab, setActiveTab] = useState<'monitor' | 'control'>('monitor');
-  const cameraUrl = import.meta.env.VITE_CAMERA_URL || 'http://localhost:8000/camera/stream';
+  const cameraUrl = (() => {
+    const direct = import.meta.env.VITE_CAMERA_URL as string | undefined;
+    if (direct) {
+      return direct;
+    }
+
+    const wsUrl = import.meta.env.VITE_WS_URL as string | undefined;
+    if (wsUrl) {
+      try {
+        const parsed = new URL(wsUrl);
+        const protocol = parsed.protocol === 'wss:' ? 'https:' : 'http:';
+        return `${protocol}//${parsed.host}/camera/stream`;
+      } catch {
+        // Fall back to default.
+      }
+    }
+
+    return 'http://localhost:8000/camera/stream';
+  })();
   
   const showOfflineOverlay = connectionState === 'disconnected';
   
