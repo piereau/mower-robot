@@ -1,31 +1,60 @@
+# =============================================================================
+# Frontend (apps/frontend/)
+# =============================================================================
+node_modules/
+dist/
+dist-ssr/
+*.local
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# =============================================================================
+# Backend (apps/backend/)
+# =============================================================================
+apps/backend/venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+*.env.local
 
-# Editor directories and files
+# =============================================================================
+# ROS 2 (apps/ros2/)
+# =============================================================================
+apps/ros2/build/
+apps/ros2/install/
+apps/ros2/log/
+
+# =============================================================================
+# Arduino / Embedded
+# =============================================================================
+embedded/arduino/.pio/
+embedded/arduino/.vscode/
+
+# =============================================================================
+# IDE & OS
+# =============================================================================
 .vscode/*
 !.vscode/extensions.json
-.idea
+!.vscode/settings.json
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+Thumbs.db
 
-# Backend
-backend/venv/
-backend/__pycache__/
-backend/**/__pycache__/
-*.pyc
-.env
+# =============================================================================
+# BMAD (keep tracked but ignore generated content)
+# =============================================================================
+# _bmad-output/ is tracked - contains planning artifacts

@@ -1,0 +1,15 @@
+[Unit]
+Description=Mower-Roboto Backend (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/mower-roboto/backend
+ExecStart=/home/pi/mower-roboto/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=2
+Environment="PATH=/home/pi/mower-roboto/backend/venv/bin:/usr/local/bin:/usr/bin"
+
+[Install]
+WantedBy=multi-user.target

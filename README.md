@@ -33,6 +33,8 @@ Mobile-first web application for monitoring and controlling an autonomous lawn m
 ### Frontend Setup
 
 ```bash
+cd apps/frontend
+
 # Install dependencies
 pnpm install
 
@@ -43,7 +45,7 @@ pnpm dev
 ### Backend Setup
 
 ```bash
-cd backend
+cd apps/backend
 
 # Create virtual environment
 python -m venv venv
@@ -54,6 +56,18 @@ pip install -r requirements.txt
 
 # Start server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Deploy to Raspberry Pi
+
+```bash
+# Set RPi IP address
+export RPI_HOST=192.168.1.28
+
+# Deploy (rsync mode)
+./deploy/rpi.sh
+
+# See deploy/README.md for full setup instructions
 ```
 
 ### Environment Variables
@@ -263,55 +277,59 @@ interface RobotTelemetry {
 
 ```
 mower-roboto/
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI entrypoint
-│   │   ├── api/
-│   │   │   └── health.py        # Health check route
-│   │   ├── ws/
-│   │   │   └── robot.py         # WebSocket route
-│   │   ├── domain/
-│   │   │   ├── models.py        # Pydantic models
-│   │   │   └── enums.py         # State, Connection enums
-│   │   ├── simulation/
-│   │   │   └── telemetry.py     # Telemetry generator
-│   │   ├── hardware/
-│   │   │   ├── interfaces.py    # GPIO interface contract
-│   │   │   ├── mock_gpio.py     # Mock implementation
-│   │   │   └── rpi_gpio.py      # Real RPi implementation (future)
-│   │   └── settings.py          # Configuration
-│   ├── tests/
-│   │   └── test_simulation.py   # Simulator unit tests
-│   └── requirements.txt
+├── apps/
+│   ├── backend/                 # Python FastAPI → deploys to RPi
+│   │   ├── app/
+│   │   │   ├── main.py          # FastAPI entrypoint
+│   │   │   ├── api/             # REST endpoints
+│   │   │   ├── ws/              # WebSocket handlers
+│   │   │   ├── domain/          # Models & enums
+│   │   │   ├── control/         # Motor control
+│   │   │   ├── camera/          # Camera streaming
+│   │   │   └── settings.py      # Configuration
+│   │   └── requirements.txt
+│   │
+│   ├── frontend/                # React/Vite → runs on PC/browser
+│   │   ├── src/
+│   │   │   ├── pages/           # Dashboard, ScheduleForm
+│   │   │   ├── components/      # UI components
+│   │   │   ├── hooks/           # useRobotTelemetry, useRobotControl
+│   │   │   ├── services/        # wsClient
+│   │   │   └── types/           # TypeScript interfaces
+│   │   ├── package.json
+│   │   └── vite.config.ts
+│   │
+│   └── ros2/                    # ROS 2 workspace → deploys to RPi (future)
+│       └── src/
 │
-├── src/                         # Frontend (React)
-│   ├── pages/
-│   │   └── Dashboard.tsx        # Main dashboard screen
-│   ├── components/
-│   │   ├── StatusCard.tsx       # Robot state card
-│   │   ├── BatteryIndicator.tsx # Battery level display
-│   │   └── LastUpdated.tsx      # Timestamp display
-│   ├── hooks/
-│   │   └── useRobotTelemetry.ts # WebSocket subscription hook
-│   ├── services/
-│   │   ├── wsClient.ts          # WebSocket client
-│   │   └── apiClient.ts         # REST client (optional)
-│   ├── types/
-│   │   └── telemetry.ts         # TypeScript interfaces
-│   ├── utils/
-│   │   └── formatters.ts        # Date, percentage formatting
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── index.css                # Tailwind imports
+├── embedded/
+│   └── arduino/                 # Arduino sketches → flashed via USB
+│       └── robot_mower.ino
 │
-├── public/
-│   └── dashboard.png            # Design reference
-├── index.html
-├── package.json
-├── tailwind.config.js
-├── vite.config.ts
+├── deploy/                      # Deployment scripts & configs
+│   ├── rpi.sh                   # Main deploy script
+│   ├── services/                # systemd unit files
+│   └── README.md
+│
+├── shared/                      # Shared types/contracts
+│   └── types/
+│
+├── docs/                        # Documentation
+│
+├── _bmad/                       # BMAD workflow templates
+├── _bmad-output/                # Planning artifacts (PRD, Architecture, Epics)
+│
 └── README.md
 ```
+
+### Deployment Targets
+
+| Component | Location | Deploys To |
+|-----------|----------|------------|
+| Backend | `apps/backend/` | Raspberry Pi |
+| Frontend | `apps/frontend/` | Local dev / CDN |
+| ROS 2 | `apps/ros2/` | Raspberry Pi |
+| Arduino | `embedded/arduino/` | Arduino (via USB) |
 
 ---
 
