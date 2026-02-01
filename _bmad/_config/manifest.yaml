@@ -1,21 +1,32 @@
 installation:
-  version: 6.0.0-Beta.2
+  version: 6.0.0-Beta.4
   installDate: 2026-01-28T19:01:16.411Z
-  lastUpdated: 2026-01-28T19:01:16.411Z
+  lastUpdated: 2026-02-01T20:01:45.210Z
 modules:
   - name: core
-    version: 6.0.0-Beta.2
+    version: 6.0.0-Beta.4
     installDate: 2026-01-28T19:01:16.411Z
-    lastUpdated: 2026-01-28T19:01:16.411Z
+    lastUpdated: 2026-02-01T20:01:44.950Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: bmm
-    version: 6.0.0-Beta.2
+    version: 6.0.0-Beta.4
     installDate: 2026-01-28T19:01:16.390Z
-    lastUpdated: 2026-01-28T19:01:16.411Z
+    lastUpdated: 2026-02-01T20:01:44.950Z
     source: built-in
     npmPackage: null
     repoUrl: null
+  - name: bmb
+    version: 0.1.4
+    installDate: 2026-02-01T20:01:44.931Z
+    lastUpdated: 2026-02-01T20:01:45.210Z
+    source: external
+    npmPackage: bmad-builder
+    repoUrl: https://github.com/bmad-code-org/bmad-builder
 ides:
   - cursor
+  - claude-code
+  - windsurf
+  - github-copilot
+  - antigravity

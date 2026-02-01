@@ -30,3 +30,7 @@ name,description,module,path
 "testarch-test-design","Dual-mode workflow: (1) System-level testability review in Solutioning phase, or (2) Epic-level test planning in Implementation phase. Auto-detects mode based on project phase.","bmm","_bmad/bmm/workflows/testarch/test-design/workflow.yaml"
 "testarch-test-review","Review test quality using comprehensive knowledge base and best practices validation","bmm","_bmad/bmm/workflows/testarch/test-review/workflow.yaml"
 "testarch-trace","Generate requirements-to-tests traceability matrix, analyze coverage, and make quality gate decision (PASS/CONCERNS/FAIL/WAIVED)","bmm","_bmad/bmm/workflows/testarch/trace/workflow.yaml"
+"qa-automate","Generate tests quickly for existing features using standard test patterns","bmm","_bmad/bmm/workflows/qa/automate/workflow.yaml"
+"agent","Tri-modal workflow for creating, editing, and validating BMAD Core compliant agents","bmb","_bmad/bmb/workflows/agent/workflow.md"
+"module","Quad-modal workflow for creating BMAD modules (Brief + Create + Edit + Validate)","bmb","_bmad/bmb/workflows/module/workflow.md"
+"workflow","Create structured standalone workflows using markdown-based step architecture (tri-modal: create, validate, edit)","bmb","_bmad/bmb/workflows/workflow/workflow.md"
