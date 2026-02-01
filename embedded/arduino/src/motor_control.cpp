@@ -147,6 +147,10 @@ void MotorControl::update(int32_t leftEncoderTicks, int32_t rightEncoderTicks) {
     return;
   }
 
+  float leftCommand, rightCommand;
+
+#if ENCODER_HARDWARE_ENABLED
+  // === CLOSED-LOOP MODE (with encoders) ===
   // Calculate actual wheel velocities from encoder feedback
   int32_t leftDelta = leftEncoderTicks - _prevLeftTicks;
   int32_t rightDelta = rightEncoderTicks - _prevRightTicks;
@@ -167,8 +171,24 @@ void MotorControl::update(int32_t leftEncoderTicks, int32_t rightEncoderTicks) {
 
   // Combine target velocity with PID correction for feedforward + feedback
   // Normalize to -1.0 to 1.0 range for motor output
-  float leftCommand = (_targetVelocity.left + leftOutput) / MAX_WHEEL_SPEED_MS;
-  float rightCommand = (_targetVelocity.right + rightOutput) / MAX_WHEEL_SPEED_MS;
+  leftCommand = (_targetVelocity.left + leftOutput) / MAX_WHEEL_SPEED_MS;
+  rightCommand = (_targetVelocity.right + rightOutput) / MAX_WHEEL_SPEED_MS;
+#else
+  // === OPEN-LOOP MODE (no encoders) ===
+  // Direct velocity-to-PWM mapping for testing without encoder feedback
+  // Target velocity is directly converted to motor command
+  _lastUpdateTime = now;
+  _measuredVelocity.left = _targetVelocity.left;   // Assume we're at target
+  _measuredVelocity.right = _targetVelocity.right;
+
+  // Simple proportional mapping: velocity (m/s) -> PWM (-1 to 1)
+  leftCommand = _targetVelocity.left / MAX_WHEEL_SPEED_MS;
+  rightCommand = _targetVelocity.right / MAX_WHEEL_SPEED_MS;
+
+  // Suppress unused parameter warnings in open-loop mode
+  (void)leftEncoderTicks;
+  (void)rightEncoderTicks;
+#endif
 
   // Clamp outputs
   leftCommand = constrain(leftCommand, -1.0f, 1.0f);

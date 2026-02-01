@@ -47,6 +47,11 @@ public:
   void feed();
 
   /**
+   * @brief Clear the triggered flag after it has been reported.
+   */
+  void clearTriggered();
+
+  /**
    * @brief Check if watchdog has timed out.
    * @return true if timeout has occurred and motors should be stopped.
    */
@@ -83,7 +88,6 @@ inline void Watchdog::begin() {
 
 inline void Watchdog::feed() {
   _lastValidCommandTime = millis();
-  _triggered = false;
 }
 
 inline bool Watchdog::check() {
@@ -96,6 +100,10 @@ inline bool Watchdog::check() {
 
 inline bool Watchdog::isTriggered() const {
   return _triggered;
+}
+
+inline void Watchdog::clearTriggered() {
+  _triggered = false;
 }
 
 inline unsigned long Watchdog::timeSinceLastCommand() const {

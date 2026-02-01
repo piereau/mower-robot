@@ -65,6 +65,7 @@
 #define STATUS_FLAG_ESTOP_ACTIVE        0x02
 #define STATUS_FLAG_MOTOR_FAULT         0x04
 #define STATUS_FLAG_LOW_BATTERY         0x08
+#define STATUS_FLAG_CRC_ERROR_SEEN      0x10
 
 // =============================================================================
 // Error Counters Structure

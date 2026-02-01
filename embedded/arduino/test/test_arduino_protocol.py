@@ -45,6 +45,7 @@ STATUS_FLAG_WATCHDOG_TRIGGERED = 0x01
 STATUS_FLAG_ESTOP_ACTIVE = 0x02
 STATUS_FLAG_MOTOR_FAULT = 0x04
 STATUS_FLAG_LOW_BATTERY = 0x08
+STATUS_FLAG_CRC_ERROR_SEEN = 0x10
 
 # =============================================================================
 # CRC16 Implementation
@@ -108,6 +109,16 @@ def build_packet(msg_type: int, payload: bytes, seq: int = 0) -> bytes:
     packet = struct.pack("<H", SOF) + header + struct.pack("<H", crc)
 
     return packet
+
+
+def corrupt_packet(packet: bytes) -> bytes:
+    """Corrupt a packet by flipping one payload byte (ensures CRC mismatch)."""
+    if len(packet) < 9:
+        return packet
+    # Flip one byte in payload (byte after header)
+    pkt = bytearray(packet)
+    pkt[6] ^= 0xFF
+    return bytes(pkt)
 
 
 def build_velocity_command(linear: float, angular: float, seq: int = 0) -> bytes:
@@ -195,11 +206,27 @@ def parse_telemetry(data: bytes) -> Dict[str, Any]:
             "estop_active": bool(status_flags & STATUS_FLAG_ESTOP_ACTIVE),
             "motor_fault": bool(status_flags & STATUS_FLAG_MOTOR_FAULT),
             "low_battery": bool(status_flags & STATUS_FLAG_LOW_BATTERY),
+            "crc_error_seen": bool(status_flags & STATUS_FLAG_CRC_ERROR_SEEN),
             "status_flags": status_flags,
             "battery_mv": battery_mv,
         }
 
     return {"type": f"0x{msg_type:02X}", "seq": seq, "payload": payload.hex()}
+
+
+# =============================================================================
+# Manual Verification Helper
+# =============================================================================
+
+
+def confirm_manual(prompt: str) -> bool:
+    """Prompt user for manual verification (y/n)."""
+    while True:
+        resp = input(f"{prompt} [y/n]: ").strip().lower()
+        if resp in {"y", "yes"}:
+            return True
+        if resp in {"n", "no"}:
+            return False
 
 
 # =============================================================================
@@ -222,6 +249,11 @@ class ArduinoProtocolTester:
         self.baud = baud
         self.ser: Optional[serial.Serial] = None
         self.seq = 0
+        self.step_delay_sec = 0.0
+        self.command_duration_sec = 0.0
+        self.linear_speed = 0.8
+        self.angular_speed = 0.8
+        self.post_corrupt_duration_sec = 1.5
 
     def connect(self) -> bool:
         """Open serial connection."""
@@ -264,6 +296,15 @@ class ArduinoProtocolTester:
         response = self.ser.read(64)
         return parse_telemetry(response)
 
+    def keep_alive(self, duration_sec: float, linear: float, angular: float):
+        """Continuously send velocity commands for a duration."""
+        if not self.ser:
+            return
+        end_time = time.time() + duration_sec
+        while time.time() < end_time:
+            self.send_velocity(linear, angular)
+            time.sleep(0.02)  # 50Hz
+
     def send_estop(self) -> Dict[str, Any]:
         """Send E-stop command."""
         if not self.ser:
@@ -285,13 +326,29 @@ class ArduinoProtocolTester:
 
         # Build valid packet then corrupt CRC
         packet = build_velocity_command(0.5, 0.0, self.seq)
-        corrupted = packet[:-2] + b"\xFF\xFF"  # Replace CRC with invalid value
+        corrupted = corrupt_packet(packet)
 
         self.ser.write(corrupted)
         time.sleep(0.025)
 
         response = self.ser.read(64)
         return parse_telemetry(response)
+
+    def read_telemetry_until(self, predicate, timeout_sec: float = 0.25) -> Dict[str, Any]:
+        """Read telemetry frames until predicate returns True or timeout."""
+        if not self.ser:
+            return {"error": "not connected"}
+
+        end_time = time.time() + timeout_sec
+        last_resp: Dict[str, Any] = {"error": "no response"}
+        while time.time() < end_time:
+            resp = parse_telemetry(self.ser.read(64))
+            if resp and "error" not in resp:
+                last_resp = resp
+                if predicate(resp):
+                    return resp
+            time.sleep(0.01)
+        return last_resp
 
     def wait_for_watchdog(self, timeout_sec: float = 0.3) -> Dict[str, Any]:
         """
@@ -327,8 +384,12 @@ def test_ac1_motor_command_execution(tester: ArduinoProtocolTester) -> bool:
     print("=" * 60)
 
     # Send velocity command
-    print("\n[1] Sending velocity command (linear=0.5, angular=0.0)...")
-    resp = tester.send_velocity(0.5, 0.0)
+    print("\n[1] Sending velocity command (linear=0.8, angular=0.0)...")
+    if tester.command_duration_sec > 0:
+        tester.keep_alive(tester.command_duration_sec, tester.linear_speed, 0.0)
+    resp = tester.send_velocity(tester.linear_speed, 0.0)
+    if tester.step_delay_sec > 0:
+        time.sleep(tester.step_delay_sec)
 
     if "error" in resp:
         print(f"✗ FAIL: {resp['error']}")
@@ -359,20 +420,27 @@ def test_ac2_watchdog_safety(tester: ArduinoProtocolTester) -> bool:
     print("=" * 60)
 
     # First, send a command to start motors
-    print("\n[1] Sending velocity command (linear=0.5, angular=0.0)...")
-    resp = tester.send_velocity(0.5, 0.0)
+    print("\n[1] Sending velocity command (linear=0.8, angular=0.0)...")
+    if tester.command_duration_sec > 0:
+        tester.keep_alive(tester.command_duration_sec, tester.linear_speed, 0.0)
+    resp = tester.send_velocity(tester.linear_speed, 0.0)
     if "error" in resp:
         print(f"✗ FAIL: Could not send initial command: {resp['error']}")
         return False
     print(f"  Initial response: watchdog={resp.get('watchdog_triggered', 'N/A')}")
+    if tester.step_delay_sec > 0:
+        time.sleep(tester.step_delay_sec)
 
     # Wait for watchdog timeout (> 200ms)
     print("\n[2] Waiting 300ms (> 200ms watchdog timeout)...")
-    time.sleep(0.3)
+    time.sleep(0.3 + tester.step_delay_sec)
 
     # Send command to check status
     print("\n[3] Sending status query...")
-    resp = tester.send_velocity(0.0, 0.0)
+    tester.send_velocity(0.0, 0.0)
+    resp = tester.read_telemetry_until(
+        lambda r: r.get("watchdog_triggered", False), timeout_sec=0.3
+    )
 
     if "error" in resp:
         print(f"✗ FAIL: {resp['error']}")
@@ -384,12 +452,9 @@ def test_ac2_watchdog_safety(tester: ArduinoProtocolTester) -> bool:
     if watchdog_triggered:
         print("✓ PASS: Watchdog triggered as expected")
         return True
-    else:
-        print(
-            "? PARTIAL: Watchdog flag not set in response, but motors may have stopped"
-        )
-        print("  (Manual verification: check if motors stopped during 300ms gap)")
-        return True  # Count as pass if motors actually stopped
+
+    print("? CHECK: Watchdog flag not set in response")
+    return confirm_manual("Did the motors stop during the 300ms gap?")
 
 
 def test_ac3_crc_validation(tester: ArduinoProtocolTester) -> bool:
@@ -405,28 +470,42 @@ def test_ac3_crc_validation(tester: ArduinoProtocolTester) -> bool:
     print("=" * 60)
 
     # Send valid command first
-    print("\n[1] Sending valid velocity command (linear=0.3, angular=0.0)...")
-    resp = tester.send_velocity(0.3, 0.0)
+    print("\n[1] Sending valid velocity command (linear=0.8, angular=0.0)...")
+    if tester.command_duration_sec > 0:
+        tester.keep_alive(tester.command_duration_sec, tester.linear_speed, 0.0)
+    resp = tester.send_velocity(tester.linear_speed, 0.0)
     if "error" in resp:
         print(f"  Warning: {resp['error']}")
+    if tester.step_delay_sec > 0:
+        time.sleep(tester.step_delay_sec)
 
     # Send corrupted packet
     print("\n[2] Sending corrupted packet (invalid CRC)...")
     resp = tester.send_corrupted_packet()
     print(f"  Response after corrupted packet: {resp}")
+    if tester.step_delay_sec > 0:
+        time.sleep(tester.step_delay_sec)
 
-    # Verify motors still running (by checking no immediate stop)
-    print("\n[3] Checking motor state...")
-    time.sleep(0.05)
-    resp = tester.send_velocity(0.0, 0.0)  # Stop motors
+    # Keep sending valid commands so motors should continue running
+    print("\n[3] Keeping motors running after bad packet...")
+    if tester.post_corrupt_duration_sec > 0:
+        tester.keep_alive(tester.post_corrupt_duration_sec, tester.linear_speed, 0.0)
 
-    if "error" not in resp:
-        print("✓ PASS: Corrupted packet was rejected (no crash)")
-        print("  (Manual verification: motors should have continued running)")
-        return True
-    else:
-        print(f"? CHECK: {resp}")
-        return True  # Partial pass
+    # Stop motors after observation
+    print("\n[4] Stopping motors for check...")
+    tester.send_velocity(0.0, 0.0)  # Stop motors
+    if tester.step_delay_sec > 0:
+        time.sleep(tester.step_delay_sec)
+    resp = tester.read_telemetry_until(
+        lambda r: r.get("crc_error_seen", False), timeout_sec=0.3
+    )
+
+    if not resp.get("crc_error_seen", False):
+        print("✗ FAIL: CRC error flag not set after corrupted packet")
+        return False
+
+    print("✓ PASS: CRC error flag set after corrupted packet")
+    return confirm_manual("Did motors keep running after the bad packet?")
 
 
 def test_ac4_differential_drive(tester: ArduinoProtocolTester) -> bool:
@@ -442,36 +521,43 @@ def test_ac4_differential_drive(tester: ArduinoProtocolTester) -> bool:
     print("=" * 60)
 
     # Test forward motion
-    print("\n[1] Forward motion (linear=0.5, angular=0.0)...")
-    resp = tester.send_velocity(0.5, 0.0)
+    print("\n[1] Forward motion (linear=0.8, angular=0.0)...")
+    if tester.command_duration_sec > 0:
+        tester.keep_alive(tester.command_duration_sec, tester.linear_speed, 0.0)
+    resp = tester.send_velocity(tester.linear_speed, 0.0)
     if "error" not in resp:
         print(f"  Encoders L/R: {resp.get('encoder_left', 'N/A')}/{resp.get('encoder_right', 'N/A')}")
         print("  (Verify: both wheels turning at same speed)")
-    time.sleep(0.5)
+    time.sleep(0.5 + tester.step_delay_sec)
 
     # Test turning
-    print("\n[2] Turning motion (linear=0.3, angular=0.5)...")
-    resp = tester.send_velocity(0.3, 0.5)
+    print("\n[2] Turning motion (linear=0.8, angular=0.8)...")
+    if tester.command_duration_sec > 0:
+        tester.keep_alive(tester.command_duration_sec, tester.linear_speed, tester.angular_speed)
+    resp = tester.send_velocity(tester.linear_speed, tester.angular_speed)
     if "error" not in resp:
         print(f"  Encoders L/R: {resp.get('encoder_left', 'N/A')}/{resp.get('encoder_right', 'N/A')}")
         print("  (Verify: left wheel slower than right - turning left)")
-    time.sleep(0.5)
+    time.sleep(0.5 + tester.step_delay_sec)
 
     # Test pivot turn
-    print("\n[3] Pivot turn (linear=0.0, angular=1.0)...")
-    resp = tester.send_velocity(0.0, 1.0)
+    print("\n[3] Pivot turn (linear=0.0, angular=0.8)...")
+    if tester.command_duration_sec > 0:
+        tester.keep_alive(tester.command_duration_sec, 0.0, tester.angular_speed)
+    resp = tester.send_velocity(0.0, tester.angular_speed)
     if "error" not in resp:
         print(f"  Encoders L/R: {resp.get('encoder_left', 'N/A')}/{resp.get('encoder_right', 'N/A')}")
         print("  (Verify: wheels turning opposite directions)")
-    time.sleep(0.5)
+    time.sleep(0.5 + tester.step_delay_sec)
 
     # Stop motors
     print("\n[4] Stopping motors...")
     tester.send_velocity(0.0, 0.0)
+    if tester.step_delay_sec > 0:
+        time.sleep(tester.step_delay_sec)
 
     print("\n✓ PASS: Differential drive commands sent")
-    print("  (Manual verification required: observe wheel behavior)")
-    return True
+    return confirm_manual("Did wheel behavior match the expected turn/rotation?")
 
 
 def test_estop(tester: ArduinoProtocolTester) -> bool:
@@ -481,21 +567,28 @@ def test_estop(tester: ArduinoProtocolTester) -> bool:
     print("=" * 60)
 
     # Start motors
-    print("\n[1] Starting motors (linear=0.5)...")
-    tester.send_velocity(0.5, 0.0)
-    time.sleep(0.1)
+    print("\n[1] Starting motors (linear=0.8)...")
+    if tester.command_duration_sec > 0:
+        tester.keep_alive(tester.command_duration_sec, tester.linear_speed, 0.0)
+    tester.send_velocity(tester.linear_speed, 0.0)
+    time.sleep(0.1 + tester.step_delay_sec)
 
     # Send E-stop
     print("\n[2] Sending E-stop command...")
-    resp = tester.send_estop()
+    tester.send_estop()
+    if tester.step_delay_sec > 0:
+        time.sleep(tester.step_delay_sec)
+    resp = tester.read_telemetry_until(
+        lambda r: r.get("estop_active", False), timeout_sec=0.3
+    )
     print(f"  Response: {resp}")
 
     if resp.get("estop_active", False):
         print("✓ PASS: E-stop acknowledged")
         return True
-    else:
-        print("? CHECK: E-stop response received")
-        return True
+
+    print("? CHECK: E-stop flag not set")
+    return confirm_manual("Did the motors stop immediately after E-stop?")
 
 
 # =============================================================================
@@ -503,9 +596,21 @@ def test_estop(tester: ArduinoProtocolTester) -> bool:
 # =============================================================================
 
 
-def run_all_tests(port: str) -> Dict[str, bool]:
+def run_all_tests(
+    port: str,
+    step_delay_sec: float,
+    command_duration_sec: float,
+    linear_speed: float,
+    angular_speed: float,
+    post_corrupt_duration_sec: float,
+) -> Dict[str, bool]:
     """Run all acceptance criteria tests."""
     tester = ArduinoProtocolTester(port)
+    tester.step_delay_sec = max(0.0, step_delay_sec)
+    tester.command_duration_sec = max(0.0, command_duration_sec)
+    tester.linear_speed = linear_speed
+    tester.angular_speed = angular_speed
+    tester.post_corrupt_duration_sec = max(0.0, post_corrupt_duration_sec)
 
     if not tester.connect():
         return {"connection": False}
@@ -555,6 +660,36 @@ Examples:
         action="store_true",
         help="List available serial ports",
     )
+    parser.add_argument(
+        "--step-delay",
+        type=float,
+        default=0.5,
+        help="Extra delay in seconds between test steps (default: 0.5)",
+    )
+    parser.add_argument(
+        "--command-duration",
+        type=float,
+        default=1.5,
+        help="Duration in seconds to continuously send commands (default: 1.5)",
+    )
+    parser.add_argument(
+        "--linear-speed",
+        type=float,
+        default=0.8,
+        help="Linear speed command (-1.0 to 1.0, default: 0.8)",
+    )
+    parser.add_argument(
+        "--angular-speed",
+        type=float,
+        default=0.8,
+        help="Angular speed command (-1.0 to 1.0, default: 0.8)",
+    )
+    parser.add_argument(
+        "--post-corrupt-duration",
+        type=float,
+        default=1.5,
+        help="Seconds to keep commands after bad CRC (default: 1.5)",
+    )
 
     args = parser.parse_args()
 
@@ -579,7 +714,16 @@ Examples:
     print(f"\nPort: {args.port}")
     print("\nStarting tests...\n")
 
-    results = run_all_tests(args.port)
+    # Configure per-step delay
+    # (tester is constructed inside run_all_tests; set after connect)
+    results = run_all_tests(
+        args.port,
+        args.step_delay,
+        args.command_duration,
+        args.linear_speed,
+        args.angular_speed,
+        args.post_corrupt_duration,
+    )
 
     # Summary
     print("\n" + "=" * 60)

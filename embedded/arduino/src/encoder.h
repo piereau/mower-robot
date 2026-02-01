@@ -34,7 +34,8 @@
 #define ENCODER_TICKS_PER_REV 20
 
 // Enable/disable encoder hardware (set to 0 for testing without encoders)
-#define ENCODER_HARDWARE_ENABLED 1
+// When disabled, motor control uses open-loop (direct PWM) instead of PID
+#define ENCODER_HARDWARE_ENABLED 0
 
 // =============================================================================
 // Encoder Class

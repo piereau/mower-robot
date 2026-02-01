@@ -41,6 +41,7 @@ Protocol::Protocol()
       _hasVelocityCmd(false),
       _hasEstopCmd(false),
       _lastSeq(0) {
+  memset(_rxBuffer, 0, sizeof(_rxBuffer));
   memset(&_velocityCmd, 0, sizeof(_velocityCmd));
   memset(&_errors, 0, sizeof(_errors));
 }

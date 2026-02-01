@@ -45,7 +45,7 @@ development_status:
   # FRs covered: FR8, FR9, FR10, FR12, FR13, FR14, FR15, FR19, FR20, FR25
   # ═══════════════════════════════════════════════════════════════════════════
   epic-1: in-progress
-  1-1-arduino-motor-control-foundation: in-progress
+  1-1-arduino-motor-control-foundation: done
   1-2-ros-2-serial-bridge: backlog
   1-3-teleoperation-via-dashboard: backlog
   1-4-real-time-telemetry-display: backlog

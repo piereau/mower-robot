@@ -28,11 +28,21 @@
 Protocol protocol;
 Watchdog watchdog;
 
+// Forward declarations
+void clearEstop();
+
 // Telemetry sequence number
 uint8_t telemetrySeq = 0;
 
 // E-stop active flag (persistent until cleared by command)
 bool estopActive = false;
+
+// Track E-stop clear timing based on valid command stream
+unsigned long estopClearAccumMs = 0;
+unsigned long estopLastCmdMs = 0;
+
+// Clear watchdog flag after it has been reported once post-recovery
+bool watchdogClearPending = false;
 
 // =============================================================================
 // Battery Voltage Reading (placeholder)
@@ -75,6 +85,11 @@ uint16_t readBatteryVoltage() {
  */
 uint8_t buildStatusFlags() {
   uint8_t flags = 0;
+
+  ProtocolErrors errors = protocol.getErrors();
+  if (errors.crcErrors > 0) {
+    flags |= STATUS_FLAG_CRC_ERROR_SEEN;
+  }
 
   if (watchdog.isTriggered()) {
     flags |= STATUS_FLAG_WATCHDOG_TRIGGERED;
@@ -137,16 +152,46 @@ void loop() {
       // Only process if not in E-stop mode
       if (!estopActive) {
         motorControl.setVelocity(cmd.linear, cmd.angular);
+        estopClearAccumMs = 0;
+        estopLastCmdMs = 0;
+      } else {
+        // Require a continuous stream of valid commands to clear E-stop
+        unsigned long now = millis();
+        if (estopLastCmdMs == 0) {
+          estopLastCmdMs = now;
+          estopClearAccumMs = 0;
+        } else {
+          unsigned long delta = now - estopLastCmdMs;
+          if (delta <= WATCHDOG_TIMEOUT_MS) {
+            estopClearAccumMs += delta;
+          } else {
+            estopClearAccumMs = 0;
+          }
+          estopLastCmdMs = now;
+        }
+
+        if (estopClearAccumMs >= 5000) {
+          clearEstop();
+          estopClearAccumMs = 0;
+          estopLastCmdMs = 0;
+        }
       }
 
       // Feed watchdog on valid command (even in E-stop, to keep comms alive)
       watchdog.feed();
+
+      // If watchdog was triggered, clear it after at least one telemetry frame
+      if (watchdog.isTriggered()) {
+        watchdogClearPending = true;
+      }
     }
 
     // Check for E-stop command
     if (protocol.hasEstopCommand()) {
       protocol.clearEstopCommand();
       estopActive = true;
+      estopClearAccumMs = 0;
+      estopLastCmdMs = 0;
       motorControl.emergencyStop();
       watchdog.feed();
     }
@@ -183,6 +228,11 @@ void loop() {
     telemetry.batteryMv = readBatteryVoltage();
 
     protocol.sendTelemetry(telemetry, telemetrySeq++);
+
+    if (watchdogClearPending && watchdog.isTriggered()) {
+      watchdog.clearTriggered();
+      watchdogClearPending = false;
+    }
   }
 }
 
