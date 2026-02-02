@@ -257,4 +257,37 @@ Antigravity (gemini-2.5-pro)
 **Modified Files:**
 - `apps/backend/app/ws/robot.py`
 - `apps/frontend/src/hooks/useRobotControl.ts`
-- `apps/frontend/src/components/ControlPanel.tsx`
+
+## Academic Presentation Notes
+
+### 1. System Architecture
+**Objective:** Real-time, low-latency manual control with live feedback.
+
+**Data Pipeline:**
+- **Frontend (React)**: Captures input via Virtual Joystick. Throttles commands to **10Hz** to balance network load vs responsiveness.
+- **Backend (FastAPI)**: Maintains persistent WebSocket connection. Uses "Store & Forward" to pass JSON commands to ROS layer via **Unix Domain Sockets** (microsecond latency).
+- **ROS 2 Bridge**: Custom node (`ws_bridge`) that translates JSON (`{x, y}`) into standard ROS `geometry_msgs/Twist` messages (-1.0 to 1.0 normalized inputs -> physical velocity targets).
+- **Embedded (Arduino)**: Receives binary protocol, runs **50Hz PID control loop**, and drives motors via H-Bridge.
+
+### 2. Telemetry Implementation
+**Definition:** The "Heartbeat" of the robot—continuous uplink data stream for monitoring health.
+
+**Data Payloads:**
+1.  **Downlink (Control)**: `Velocity Vector {x, y}` + `Safety Signals {estop, release}`.
+2.  **Uplink (Status)**:
+    -   **Connection State**: WebSocket / ROS Bridge / Serial Link health.
+    -   **Safety**: Watchdog triggers (failsafe if signal lost >0.5s), E-Stop state.
+    -   **Odometry**: Real-time Linear (m/s) and Angular (rad/s) velocity feedback.
+    -   **Sensors**: Battery Voltage (mV).
+
+### 3. Battery Monitoring Architecture
+-   **Source**: High-voltage Motor Battery (separate from RPi logic power).
+-   **Method**: Voltage Divider circuit connected to **Arduino Analog Pin A1**.
+-   **Conversion**: ADC value converted to millivolts and sent in binary telemetry packet.
+-   **Current Status**: Firmware implements the logic (`readBatteryVoltage()` in `main.cpp`), currently returning simulated 12V pending hardware sensor connection.
+
+### 4. Key Challenges Solved
+-   **Torque/Friction**: Integrated `max_angular_vel` parameter (8.0 rad/s) to ensure sufficient PWM power for skid-steering turns.
+-   **Latency**: Eliminated TCP overhead for local IPC by using Unix Sockets.
+-   **Safety**: Implemented "Dead Man's Switch" (auto-zero on release) and hardware watchdog.
+
