@@ -47,7 +47,7 @@ development_status:
   epic-1: in-progress
   1-1-arduino-motor-control-foundation: done
   1-2-ros-2-serial-bridge: done
-  1-3-teleoperation-via-dashboard: ready-for-dev
+  1-3-teleoperation-via-dashboard: in-progress
   1-4-real-time-telemetry-display: backlog
   1-5-emergency-stop-system: backlog
   epic-1-retrospective: optional

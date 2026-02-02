@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     """Application configuration loaded from environment variables."""
     
     # Simulation settings
-    simulation_interval: float = 2.0  # Seconds between telemetry broadcasts
+    simulation_interval: float = 0.1  # Seconds between telemetry broadcasts
     
     # Hardware settings
     use_mock_gpio: bool = True  # Use mock GPIO for development

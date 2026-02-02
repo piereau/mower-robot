@@ -102,9 +102,10 @@ else
     echo "🔨 Building ROS 2 packages..."
     remote "source /opt/ros/humble/setup.bash && cd ${RPI_PATH}/ros2 && colcon build --symlink-install"
     
-    echo "📦 Installing ROS 2 bridge service..."
+    echo "📦 Installing ROS 2 bridge services..."
     cat "${SCRIPT_DIR}/services/mower-ros2-bridge.service" | remote "sudo tee /etc/systemd/system/mower-ros2-bridge.service > /dev/null"
-    remote "sudo systemctl daemon-reload && sudo systemctl enable mower-ros2-bridge.service"
+    cat "${SCRIPT_DIR}/services/mower-teleop-bridge.service" | remote "sudo tee /etc/systemd/system/mower-teleop-bridge.service > /dev/null"
+    remote "sudo systemctl daemon-reload && sudo systemctl enable mower-ros2-bridge.service mower-teleop-bridge.service"
   fi
 fi
 
@@ -117,8 +118,8 @@ echo "🔄 Restarting mower-backend service..."
 remote "sudo systemctl restart mower-backend.service"
 
 if [ "$DEPLOY_ROS2" = true ]; then
-  echo "🔄 Restarting ROS 2 bridge service..."
-  remote "sudo systemctl restart mower-ros2-bridge.service" || true
+  echo "🔄 Restarting ROS 2 bridge services..."
+  remote "sudo systemctl restart mower-ros2-bridge.service mower-teleop-bridge.service" || true
 fi
 
 echo ""
@@ -128,6 +129,8 @@ echo "📊 Service status:"
 remote "sudo systemctl status mower-backend.service --no-pager | head -10"
 if [ "$DEPLOY_ROS2" = true ]; then
   echo ""
-  remote "sudo systemctl status mower-ros2-bridge.service --no-pager | head -10" || true
+  remote "sudo systemctl status mower-ros2-bridge.service --no-pager | head -5" || true
+  echo ""
+  remote "sudo systemctl status mower-teleop-bridge.service --no-pager | head -5" || true
 fi
 

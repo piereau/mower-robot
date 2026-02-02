@@ -1,0 +1,17 @@
+[Unit]
+Description=Mower-Roboto ROS 2 Teleop Bridge
+After=network.target mower-ros2-bridge.service
+Requires=network.target
+
+[Service]
+Type=simple
+User=pi
+Environment="ROS_DOMAIN_ID=0"
+ExecStart=/bin/bash -c 'source /opt/ros/humble/setup.bash && source /home/pi/mower-roboto/ros2/install/setup.bash && ros2 launch mower_bringup teleop_bridge.launch.py'
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

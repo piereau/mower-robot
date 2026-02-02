@@ -1,104 +1,72 @@
 /**
  * Hook for sending drive commands over WebSocket.
+ * 
+ * Sends normalized joystick values (x, y) to the backend:
+ * - x: left/right (-1 to 1), positive = right
+ * - y: forward/back (-1 to 1), positive = forward
+ * 
+ * Rate limited to 10Hz (100ms) to save bandwidth.
+ * The ROS 2 bridge handles conversion to Twist messages.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { createWSClient, WSClient } from '../services/wsClient';
-import type { DriveCommand } from '../types/control';
+import { useCallback } from 'react';
+import { useRobot } from '../contexts/RobotContext';
+import { useThrottledCallback, THROTTLE_MS } from './useThrottledCallback';
 
-const SEND_INTERVAL_MS = 50;
 const DEADZONE = 0.08;
-const TURN_IN_PLACE_THRESHOLD = 0.2;
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
 
 const applyDeadzone = (value: number) =>
   Math.abs(value) < DEADZONE ? 0 : value;
 
-const mapJoystickToDrive = (x: number, y: number): DriveCommand => {
-  const dx = applyDeadzone(x);
-  const dy = applyDeadzone(y);
-
-  if (Math.abs(dy) < TURN_IN_PLACE_THRESHOLD && Math.abs(dx) > 0) {
-    return {
-      left: dx > 0 ? Math.abs(dx) : 0,
-      right: dx < 0 ? Math.abs(dx) : 0,
-    };
-  }
-
-  return {
-    left: clamp(dy + dx, -1, 1),
-    right: clamp(dy - dx, -1, 1),
-  };
-};
-
 export function useRobotControl() {
-  const [connected, setConnected] = useState(false);
-  const wsClientRef = useRef<WSClient | null>(null);
-  const lastSendRef = useRef(0);
-  const pendingRef = useRef<DriveCommand | null>(null);
-  const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { wsClient, connectionState } = useRobot();
+  const connected = connectionState === 'connected';
 
-  useEffect(() => {
-    const client = createWSClient(() => {}, setConnected);
-    wsClientRef.current = client;
-    client.connect();
+  // Send joystick position to backend
+  const sendPosition = useCallback((x: number, y: number) => {
+    if (!wsClient || !connected) return;
 
-    return () => {
-      client.disconnect();
-      wsClientRef.current = null;
-      if (sendTimeoutRef.current) {
-        clearTimeout(sendTimeoutRef.current);
-        sendTimeoutRef.current = null;
-      }
-    };
-  }, []);
+    // Apply deadzone
+    const dx = applyDeadzone(x);
+    const dy = applyDeadzone(y);
 
-  const flushSend = useCallback(() => {
-    if (!pendingRef.current || !wsClientRef.current) return;
-
-    wsClientRef.current.sendJSON({
+    wsClient.sendJSON({
       type: 'control',
-      ...pendingRef.current,
+      x: dx,
+      y: dy,
     });
-    pendingRef.current = null;
-    lastSendRef.current = Date.now();
-  }, []);
+  }, [wsClient, connected]);
 
-  const scheduleSend = useCallback(() => {
-    if (sendTimeoutRef.current) return;
+  // Throttled version for continuous movement (10Hz)
+  const sendJoystick = useThrottledCallback(sendPosition, THROTTLE_MS);
 
-    const elapsed = Date.now() - lastSendRef.current;
-    const delay = Math.max(0, SEND_INTERVAL_MS - elapsed);
-
-    sendTimeoutRef.current = setTimeout(() => {
-      sendTimeoutRef.current = null;
-      flushSend();
-    }, delay);
-  }, [flushSend]);
-
-  const sendJoystick = useCallback(
-    (x: number, y: number) => {
-      pendingRef.current = mapJoystickToDrive(x, y);
-
-      if (Date.now() - lastSendRef.current >= SEND_INTERVAL_MS) {
-        flushSend();
-      } else {
-        scheduleSend();
-      }
-    },
-    [flushSend, scheduleSend]
-  );
-
+  // Immediate stop command (not throttled)
   const stop = useCallback(() => {
-    pendingRef.current = { left: 0, right: 0 };
-    flushSend();
-  }, [flushSend]);
+    if (!wsClient || !connected) return;
+
+    wsClient.sendJSON({
+      type: 'control',
+      x: 0,
+      y: 0,
+    });
+  }, [wsClient, connected]);
+
+  // E-stop commands
+  const sendEstop = useCallback(() => {
+    if (!wsClient || !connected) return;
+    wsClient.sendJSON({ type: 'estop' });
+  }, [wsClient, connected]);
+
+  const releaseEstop = useCallback(() => {
+    if (!wsClient || !connected) return;
+    wsClient.sendJSON({ type: 'release_estop' });
+  }, [wsClient, connected]);
 
   return {
     connected,
     sendJoystick,
     stop,
+    sendEstop,
+    releaseEstop,
   };
 }

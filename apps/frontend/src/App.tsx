@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Dashboard } from './pages/Dashboard';
 import { MowerMap } from './components/MowerMap';
 import { ScheduleForm } from './pages/ScheduleForm';
+import { RobotProvider } from './contexts/RobotContext';
 import './index.css';
 
-type Screen = 
+type Screen =
   | { type: 'dashboard' }
   | { type: 'map'; zoneName: string }
   | { type: 'schedule' };
@@ -17,7 +18,7 @@ type Schedule = {
 // Initial schedules
 const INITIAL_SCHEDULES: Schedule[] = [
   { zone: 'Parcelle A1', time: 'Lundi 9h30' },
-  { zone: 'Parcelle B2', time: 'Mardi 14h00' },
+  { zone: 'Jardin Arrière', time: 'Mercredi 14h00' },
 ];
 
 function App() {
@@ -36,30 +37,49 @@ function App() {
     setScreen({ type: 'schedule' });
   };
 
-  const handleScheduleSubmit = (schedule: { zone: string; day: string; time: string }) => {
-    // Add new schedule to the list
-    const newSchedule: Schedule = {
-      zone: schedule.zone,
-      time: `${schedule.day} ${schedule.time}`,
-    };
-    setSchedules((prev) => [...prev, newSchedule]);
+  const handleScheduleSubmit = (schedule: Schedule) => {
+    // In a real app, this would update the backend
+    console.log('New schedule:', schedule);
+    setSchedules(prev => [...prev, schedule]);
     setScreen({ type: 'dashboard' });
   };
 
-  if (screen.type === 'map') {
-    return <MowerMap zoneName={screen.zoneName} onBack={navigateToDashboard} />;
-  }
+  const renderScreen = () => {
+    if (screen.type === 'dashboard') {
+      return (
+        <Dashboard
+          onZoneClick={(zone) => navigateToMap(zone)}
+          onScheduleClick={navigateToSchedule}
+          schedules={schedules}
+        />
+      );
+    }
 
-  if (screen.type === 'schedule') {
-    return <ScheduleForm onBack={navigateToDashboard} onSubmit={handleScheduleSubmit} />;
-  }
+    if (screen.type === 'map') {
+      return (
+        <MowerMap
+          zoneName={screen.zoneName}
+          onBack={navigateToDashboard}
+        />
+      );
+    }
+
+    if (screen.type === 'schedule') {
+      return (
+        <ScheduleForm
+          onBack={navigateToDashboard}
+          onSubmit={handleScheduleSubmit}
+        />
+      );
+    }
+
+    return null;
+  };
 
   return (
-    <Dashboard 
-      schedules={schedules}
-      onZoneClick={navigateToMap} 
-      onScheduleClick={navigateToSchedule} 
-    />
+    <RobotProvider>
+      {renderScreen()}
+    </RobotProvider>
   );
 }
 
