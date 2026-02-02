@@ -36,8 +36,8 @@ async def broadcast_telemetry() -> None:
             # Log periodic heartbeat (every 5 seconds)
             import time
             current_time = time.time()
-            if current_time - last_log_time > 5.0:
-                logger.info(f"Broadcast loop alive. Connected clients: {len(connected_clients)}")
+            if current_time - last_log_time > 60.0:
+                logger.debug(f"Broadcast loop alive. Connected clients: {len(connected_clients)}")
                 last_log_time = current_time
 
             if connected_clients:

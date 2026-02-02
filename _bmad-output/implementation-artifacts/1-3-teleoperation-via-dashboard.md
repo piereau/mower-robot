@@ -1,6 +1,6 @@
 # Story 1.3: Teleoperation via Dashboard
 
-Status: in-progress
+Status: done
 
 ## Story
 
