@@ -6,7 +6,7 @@ Scripts and configuration for deploying mower-roboto to the Raspberry Pi.
 
 ```bash
 # Set your RPi IP address
-export RPI_HOST=192.168.1.28
+export RPI_HOST=herbobot.local # 192.168.1.28
 
 # Deploy backend (rsync mode - fast)
 ./deploy/rpi.sh

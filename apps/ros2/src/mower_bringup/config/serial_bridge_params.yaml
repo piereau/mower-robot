@@ -1,0 +1,20 @@
+# Serial Bridge Parameters
+# Configure serial communication with Arduino
+
+serial_bridge:
+  ros__parameters:
+    # Serial port configuration
+    serial_port: "/dev/ttyUSB0" # May be /dev/ttyACM0 on some systems
+    baud_rate: 115200
+
+    # Communication rates (Hz)
+    cmd_rate: 50.0 # Velocity command transmission rate
+    status_rate: 1.0 # Serial status publish rate
+
+    # Connection monitoring
+    connection_timeout: 1.0 # Seconds without packet before disconnect
+
+    # Wheel odometry parameters
+    # WARNING: These are placeholder values - calibrate with real hardware!
+    wheel_separation: 0.3 # Track width in meters
+    ticks_per_meter: 1000 # Encoder ticks per meter traveled

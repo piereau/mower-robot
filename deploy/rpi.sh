@@ -91,13 +91,20 @@ else
 
   if [ "$DEPLOY_ROS2" = true ]; then
     echo "📤 Syncing ROS 2 workspace..."
-    remote "mkdir -p ${RPI_PATH}/ros2"
+    remote "mkdir -p ${RPI_PATH}/ros2/src"
     rsync_to \
       --exclude 'build' \
       --exclude 'install' \
       --exclude 'log' \
-      "${REPO_ROOT}/apps/ros2/" \
-      "${RPI_USER}@${RPI_HOST}:${RPI_PATH}/ros2/"
+      "${REPO_ROOT}/apps/ros2/src/" \
+      "${RPI_USER}@${RPI_HOST}:${RPI_PATH}/ros2/src/"
+    
+    echo "🔨 Building ROS 2 packages..."
+    remote "source /opt/ros/humble/setup.bash && cd ${RPI_PATH}/ros2 && colcon build --symlink-install"
+    
+    echo "📦 Installing ROS 2 bridge service..."
+    cat "${SCRIPT_DIR}/services/mower-ros2-bridge.service" | remote "sudo tee /etc/systemd/system/mower-ros2-bridge.service > /dev/null"
+    remote "sudo systemctl daemon-reload && sudo systemctl enable mower-ros2-bridge.service"
   fi
 fi
 
@@ -109,8 +116,18 @@ fi
 echo "🔄 Restarting mower-backend service..."
 remote "sudo systemctl restart mower-backend.service"
 
+if [ "$DEPLOY_ROS2" = true ]; then
+  echo "🔄 Restarting ROS 2 bridge service..."
+  remote "sudo systemctl restart mower-ros2-bridge.service" || true
+fi
+
 echo ""
 echo "✅ Deployment complete!"
 echo ""
 echo "📊 Service status:"
 remote "sudo systemctl status mower-backend.service --no-pager | head -10"
+if [ "$DEPLOY_ROS2" = true ]; then
+  echo ""
+  remote "sudo systemctl status mower-ros2-bridge.service --no-pager | head -10" || true
+fi
+
