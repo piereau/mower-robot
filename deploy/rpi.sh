@@ -114,6 +114,10 @@ if [ "$INSTALL_DEPS" = true ]; then
   remote "cd ${RPI_PATH}/backend && ./venv/bin/pip install -r requirements.txt"
 fi
 
+echo "📦 Installing mower-backend service..."
+cat "${SCRIPT_DIR}/services/mower-backend.service" | remote "sudo tee /etc/systemd/system/mower-backend.service > /dev/null"
+remote "sudo systemctl daemon-reload && sudo systemctl enable mower-backend.service"
+
 echo "🔄 Restarting mower-backend service..."
 remote "sudo systemctl restart mower-backend.service"
 
