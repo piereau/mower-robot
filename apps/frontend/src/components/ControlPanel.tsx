@@ -41,34 +41,6 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
 
   return (
     <div className="space-y-4">
-      {/* Camera Feed */}
-      <div className="rounded-2xl bg-black/10 p-2">
-        {cameraError ? (
-          <div className="flex h-44 items-center justify-center rounded-xl bg-black/10 text-sm text-black/60">
-            Flux caméra indisponible
-          </div>
-        ) : (
-          <img
-            src={cameraUrl}
-            alt="Flux caméra"
-            className="h-44 w-full rounded-xl object-cover"
-            onError={() => setCameraError(true)}
-          />
-        )}
-      </div>
-
-      {/* Map Visualization */}
-      <div className="rounded-2xl bg-white p-2 shadow-sm">
-        <div className="text-xs text-black/60 uppercase tracking-wider mb-2 px-1">Carte & Navigation</div>
-        <MapCanvas
-          mapData={mapData}
-          scanData={scanData}
-          robotPose={poseData}
-          className="w-full aspect-square bg-gray-100 rounded-xl"
-          showLidar={true}
-        />
-      </div>
-
       {/* Connection Status Bar */}
       <div className="flex items-center justify-between px-2 text-sm">
         <div className="flex items-center gap-2">
@@ -88,6 +60,35 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
           </span>
         </div>
       </div>
+      {/* Camera Feed */}
+      <div className="rounded-2xl bg-black/10 p-2">
+        {cameraError ? (
+          <div className="flex h-44 items-center justify-center rounded-xl bg-black/10 text-sm text-black/60">
+            Flux caméra indisponible
+          </div>
+        ) : (
+          <img
+            src={cameraUrl}
+            alt="Flux caméra"
+            className="h-44 w-full rounded-xl object-cover"
+            onError={() => setCameraError(true)}
+          />
+        )}
+      </div>
+
+      {/* Map Visualization */}
+      <div>
+        {/* <div className="text-xs text-black/60 tracking-wider mb-2 px-2">LiDAR Visualisation</div> */}
+        <MapCanvas
+          mapData={mapData}
+          scanData={scanData}
+          robotPose={poseData}
+          className="w-full h-64 bg-gray-200 border-2 border-gray-400 border-dashed rounded-xl"
+          showLidar={true}
+        />
+      </div>
+
+
 
       {/* E-Stop Button */}
       <button
