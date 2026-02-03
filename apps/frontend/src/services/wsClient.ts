@@ -4,15 +4,21 @@
  * Handles connection, reconnection, and message parsing.
  */
 
-import type { RobotTelemetry } from '../types/telemetry';
+import type { RobotTelemetry, MapMessage, ScanMessage, PoseMessage } from '../types/telemetry';
 
 export type MessageHandler = (telemetry: RobotTelemetry) => void;
+export type MapHandler = (map: MapMessage) => void;
+export type ScanHandler = (scan: ScanMessage) => void;
+export type PoseHandler = (pose: PoseMessage) => void;
 export type ConnectionHandler = (connected: boolean) => void;
 
 interface WSClientOptions {
   url: string;
   onMessage: MessageHandler;
   onConnectionChange: ConnectionHandler;
+  onMap?: MapHandler;
+  onScan?: ScanHandler;
+  onPose?: PoseHandler;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
 }
@@ -25,6 +31,9 @@ export class WSClient {
   private url: string;
   private onMessage: MessageHandler;
   private onConnectionChange: ConnectionHandler;
+  private onMap?: MapHandler;
+  private onScan?: ScanHandler;
+  private onPose?: PoseHandler;
   private reconnectInterval: number;
   private maxReconnectAttempts: number;
   private reconnectAttempts = 0;
@@ -35,6 +44,9 @@ export class WSClient {
     this.url = options.url;
     this.onMessage = options.onMessage;
     this.onConnectionChange = options.onConnectionChange;
+    this.onMap = options.onMap;
+    this.onScan = options.onScan;
+    this.onPose = options.onPose;
     this.reconnectInterval = options.reconnectInterval ?? DEFAULT_RECONNECT_INTERVAL;
     this.maxReconnectAttempts = options.maxReconnectAttempts ?? MAX_RECONNECT_ATTEMPTS;
   }
@@ -48,7 +60,7 @@ export class WSClient {
     }
 
     this.intentionalClose = false;
-    
+
     try {
       this.ws = new WebSocket(this.url);
       this.setupEventHandlers();
@@ -64,7 +76,7 @@ export class WSClient {
   disconnect(): void {
     this.intentionalClose = true;
     this.clearReconnectTimeout();
-    
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -104,7 +116,7 @@ export class WSClient {
     this.ws.onclose = () => {
       console.log('[WSClient] Disconnected');
       this.onConnectionChange(false);
-      
+
       if (!this.intentionalClose) {
         this.scheduleReconnect();
       }
@@ -120,9 +132,21 @@ export class WSClient {
         if (event.data === 'pong') {
           return;
         }
-        
-        const telemetry = JSON.parse(event.data) as RobotTelemetry;
-        this.onMessage(telemetry);
+
+        const msg = JSON.parse(event.data);
+
+        // Dispatch based on 'type' field
+        if (msg.type === 'map') {
+          this.onMap?.(msg as MapMessage);
+        } else if (msg.type === 'scan') {
+          this.onScan?.(msg as ScanMessage);
+        } else if (msg.type === 'pose') {
+          this.onPose?.(msg as PoseMessage);
+        } else {
+          // Default to telemetry if no known type
+          // (or specific check for state/battery)
+          this.onMessage(msg as RobotTelemetry);
+        }
       } catch (error) {
         console.error('[WSClient] Failed to parse message:', error);
       }
@@ -136,12 +160,12 @@ export class WSClient {
     }
 
     this.clearReconnectTimeout();
-    
+
     // Exponential backoff
     const delay = this.reconnectInterval * Math.pow(1.5, this.reconnectAttempts);
-    
+
     console.log(`[WSClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
-    
+
     this.reconnectTimeout = setTimeout(() => {
       this.reconnectAttempts++;
       this.connect();
@@ -161,14 +185,20 @@ export class WSClient {
  */
 export function createWSClient(
   onMessage: MessageHandler,
-  onConnectionChange: ConnectionHandler
+  onConnectionChange: ConnectionHandler,
+  optionalHandlers: {
+    onMap?: MapHandler;
+    onScan?: ScanHandler;
+    onPose?: PoseHandler;
+  } = {}
 ): WSClient {
   const url = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/robot';
-  
+
   return new WSClient({
     url,
     onMessage,
     onConnectionChange,
+    ...optionalHandlers
   });
 }
 

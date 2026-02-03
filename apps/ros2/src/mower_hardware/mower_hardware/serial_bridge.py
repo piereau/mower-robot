@@ -45,7 +45,7 @@ DEFAULT_CONNECTION_TIMEOUT = 1.0  # seconds
 
 # Wheel odometry parameters (calibrate with real hardware!)
 WHEEL_SEPARATION = 0.3  # meters (track width)
-TICKS_PER_METER = 1000  # encoder ticks per meter traveled
+TICKS_PER_METER = 1000.0  # encoder ticks per meter traveled
 
 # Reconnection backoff
 MIN_RECONNECT_DELAY = 1.0  # seconds

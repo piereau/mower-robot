@@ -27,7 +27,7 @@ export function useThrottledCallback<T extends (...args: any[]) => void>(
 ): T {
     const lastCall = useRef<number>(0);
     const lastArgs = useRef<Parameters<T> | null>(null);
-    const timeoutRef = useRef<number | undefined>();
+    const timeoutRef = useRef<number | undefined>(undefined);
 
     return useCallback(
         ((...args: Parameters<T>) => {

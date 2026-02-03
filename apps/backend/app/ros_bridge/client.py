@@ -50,6 +50,9 @@ class RosBridgeClient:
         self._read_task: Optional[asyncio.Task] = None
         self._status = RobotStatus()
         self._status_callbacks: list[Callable[[RobotStatus], None]] = []
+        self._map_callbacks: list[Callable[[dict], None]] = []
+        self._scan_callbacks: list[Callable[[dict], None]] = []
+        self._pose_callbacks: list[Callable[[dict], None]] = []
         self._lock = asyncio.Lock()
     
     @property
@@ -65,6 +68,18 @@ class RosBridgeClient:
     def on_status(self, callback: Callable[[RobotStatus], None]) -> None:
         """Register a callback for status updates."""
         self._status_callbacks.append(callback)
+
+    def on_map(self, callback: Callable[[dict], None]) -> None:
+        """Register a callback for map updates."""
+        self._map_callbacks.append(callback)
+
+    def on_scan(self, callback: Callable[[dict], None]) -> None:
+        """Register a callback for LiDAR scan updates."""
+        self._scan_callbacks.append(callback)
+
+    def on_pose(self, callback: Callable[[dict], None]) -> None:
+        """Register a callback for robot pose updates."""
+        self._pose_callbacks.append(callback)
     
     async def connect(self) -> bool:
         """Connect to the ROS 2 bridge socket."""
@@ -203,7 +218,7 @@ class RosBridgeClient:
                 while '\n' in buffer:
                     line, buffer = buffer.split('\n', 1)
                     if line.strip():
-                        self._process_message(line.strip())
+                        await self._process_message(line.strip())
                         
             except asyncio.TimeoutError:
                 # No data received, but connection is still alive
@@ -217,7 +232,7 @@ class RosBridgeClient:
                     self._connected = False
                 break
     
-    def _process_message(self, line: str) -> None:
+    async def _process_message(self, line: str) -> None:
         """Process a message from the bridge."""
         try:
             msg = json.loads(line)
@@ -232,13 +247,46 @@ class RosBridgeClient:
                 
                 for callback in self._status_callbacks:
                     try:
-                        callback(self._status)
+                        if asyncio.iscoroutinefunction(callback):
+                            await callback(self._status)
+                        else:
+                            callback(self._status)
                     except Exception as e:
                         logger.error(f"Status callback error: {e}")
                         
             elif msg_type == 'odom':
                 self._status.linear_vel = msg.get('linear', 0.0)
                 self._status.angular_vel = msg.get('angular', 0.0)
+            
+            elif msg_type == 'map':
+                for callback in self._map_callbacks:
+                    try:
+                        if asyncio.iscoroutinefunction(callback):
+                            await callback(msg)
+                        else:
+                            callback(msg)
+                    except Exception as e:
+                        logger.error(f"Map callback error: {e}")
+
+            elif msg_type == 'scan':
+                for callback in self._scan_callbacks:
+                    try:
+                        if asyncio.iscoroutinefunction(callback):
+                            await callback(msg)
+                        else:
+                            callback(msg)
+                    except Exception as e:
+                        logger.error(f"Scan callback error: {e}")
+
+            elif msg_type == 'pose':
+                for callback in self._pose_callbacks:
+                    try:
+                        if asyncio.iscoroutinefunction(callback):
+                            await callback(msg)
+                        else:
+                            callback(msg)
+                    except Exception as e:
+                        logger.error(f"Pose callback error: {e}")
                 
         except json.JSONDecodeError:
             logger.warning(f"Invalid JSON from bridge: {line[:50]}")

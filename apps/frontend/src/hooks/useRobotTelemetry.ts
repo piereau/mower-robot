@@ -10,6 +10,9 @@ import { useRobot } from '../contexts/RobotContext';
 export function useRobotTelemetry() {
   const {
     telemetry,
+    mapData,
+    scanData,
+    poseData,
     connectionState,
     isStale,
     lastUpdateAge,
@@ -18,6 +21,9 @@ export function useRobotTelemetry() {
 
   return {
     telemetry,
+    mapData,
+    scanData,
+    poseData,
     connectionState,
     isStale,
     lastUpdateAge,

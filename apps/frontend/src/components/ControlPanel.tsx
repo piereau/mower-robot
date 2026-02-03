@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Joystick } from './Joystick';
 import { useRobotControl } from '../hooks/useRobotControl';
 import { useRobotTelemetry } from '../hooks/useRobotTelemetry';
+import { MapCanvas } from './MapCanvas';
 import { AlertTriangle, Wifi, WifiOff, Activity } from 'lucide-react';
 
 type ControlPanelProps = {
@@ -10,19 +11,20 @@ type ControlPanelProps = {
 
 export function ControlPanel({ cameraUrl }: ControlPanelProps) {
   const { sendJoystick, stop, sendEstop, releaseEstop } = useRobotControl();
-  const { telemetry, connectionState } = useRobotTelemetry();
+  const {
+    telemetry,
+    connectionState,
+    mapData,
+    scanData,
+    poseData
+  } = useRobotTelemetry();
+
   const [cameraError, setCameraError] = useState(false);
   const [estopActive, setEstopActive] = useState(false);
 
   // Extract bridge status from telemetry
   const telemetryExtended = telemetry as unknown as Record<string, unknown> | null;
   const bridgeConnected = telemetryExtended?.bridge_connected === true;
-  /*
-  const bridgeStatus = telemetryExtended?.bridge_status as
-    | { linear_vel?: number; angular_vel?: number }
-    | undefined;
-  */
-
 
   const handleEstop = () => {
     if (estopActive) {
@@ -55,6 +57,18 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
         )}
       </div>
 
+      {/* Map Visualization */}
+      <div className="rounded-2xl bg-white p-2 shadow-sm">
+        <div className="text-xs text-black/60 uppercase tracking-wider mb-2 px-1">Carte & Navigation</div>
+        <MapCanvas
+          mapData={mapData}
+          scanData={scanData}
+          robotPose={poseData}
+          className="w-full aspect-square bg-gray-100 rounded-xl"
+          showLidar={true}
+        />
+      </div>
+
       {/* Connection Status Bar */}
       <div className="flex items-center justify-between px-2 text-sm">
         <div className="flex items-center gap-2">
@@ -75,26 +89,6 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
         </div>
       </div>
 
-      {/* Speed Display */}
-      {/* Speed Display - Hidden for now
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-white/80 p-3 text-center">
-          <div className="text-xs text-black/60 uppercase tracking-wider">Vitesse</div>
-          <div className="text-2xl font-bold text-black">
-            {Math.abs(currentSpeed.linear).toFixed(2)}
-          </div>
-          <div className="text-xs text-black/50">m/s</div>
-        </div>
-        <div className="rounded-xl bg-white/80 p-3 text-center">
-          <div className="text-xs text-black/60 uppercase tracking-wider">Rotation</div>
-          <div className="text-2xl font-bold text-black">
-            {Math.abs(currentSpeed.angular).toFixed(2)}
-          </div>
-          <div className="text-xs text-black/50">rad/s</div>
-        </div>
-      </div>
-      */}
-
       {/* E-Stop Button */}
       <button
         onClick={handleEstop}
@@ -108,9 +102,10 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
       </button>
 
       {/* Joystick */}
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+      <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-4">
         <Joystick onMove={sendJoystick} onEnd={stop} disabled={!canControl} />
 
+        {/* Alerts */}
         {!isConnected && (
           <p className="text-xs text-red-600 text-center">
             ⚠️ WebSocket non connectée

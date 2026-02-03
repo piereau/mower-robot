@@ -36,8 +36,8 @@ def generate_launch_description():
         description='Launch LiDAR driver'
     )
 
-    serial_port_arg = DeclareLaunchArgument(
-        'serial_port',
+    bridge_port_arg = DeclareLaunchArgument(
+        'bridge_port',
         default_value='/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_B001X9Y7-if00-port0',
         description='Serial port for motor controller'
     )
@@ -107,7 +107,7 @@ def generate_launch_description():
         name='serial_bridge',
         output='screen',
         parameters=[{
-            'serial_port': LaunchConfiguration('serial_port'),
+            'serial_port': LaunchConfiguration('bridge_port'),
             'baud_rate': 115200,
         }]
     )
@@ -116,7 +116,7 @@ def generate_launch_description():
         # Arguments
         use_lidar_arg,
         use_slam_arg,
-        serial_port_arg,
+        bridge_port_arg,
         lidar_port_arg,
 
         # Launch includes

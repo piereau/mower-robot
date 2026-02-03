@@ -28,6 +28,12 @@ async def broadcast_telemetry() -> None:
     simulator = get_simulator()
     bridge = get_ros_bridge_client()
     
+    # Register event-driven callbacks
+    # These will be called by the bridge client when new data arrives
+    bridge.on_map(_broadcast_map)
+    bridge.on_scan(_broadcast_scan)
+    bridge.on_pose(_broadcast_pose)
+
     logger.info("Broadcast telemetry task started")
     last_log_time = 0.0
     
@@ -67,25 +73,46 @@ async def broadcast_telemetry() -> None:
                 
                 message = json.dumps(telemetry_dict)
                 
-                # Broadcast to all connected clients
-                disconnected = set()
-                for client in connected_clients:
-                    try:
-                        await client.send_text(message)
-                    except Exception as e:
-                        logger.warning(f"Failed to send to client: {e}")
-                        disconnected.add(client)
-                
-                # Remove disconnected clients
-                if disconnected:
-                    connected_clients.difference_update(disconnected)
+                # Broadcast status to all connected clients
+                await _broadcast_to_all(message)
             
             await asyncio.sleep(settings.simulation_interval)
             
     except Exception as e:
         logger.error(f"Broadcast task crashed: {e}", exc_info=True)
-        # Restart the task? No, just die loudly for now so we see it.
         raise e
+
+
+async def _broadcast_map(msg: dict) -> None:
+    """Broadcast map update to all clients."""
+    await _broadcast_to_all(json.dumps(msg))
+
+
+async def _broadcast_scan(msg: dict) -> None:
+    """Broadcast scan update to all clients."""
+    await _broadcast_to_all(json.dumps(msg))
+
+
+async def _broadcast_pose(msg: dict) -> None:
+    """Broadcast pose update to all clients."""
+    await _broadcast_to_all(json.dumps(msg))
+
+
+async def _broadcast_to_all(message: str) -> None:
+    """Helper to send a message to all connected clients."""
+    if not connected_clients:
+        return
+        
+    disconnected = set()
+    for client in connected_clients:
+        try:
+            await client.send_text(message)
+        except Exception as e:
+            logger.warning(f"Failed to send to client: {e}")
+            disconnected.add(client)
+    
+    if disconnected:
+        connected_clients.difference_update(disconnected)
 
 
 @router.websocket("/ws/robot")
