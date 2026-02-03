@@ -14,7 +14,7 @@ def generate_launch_description():
     # Declare arguments
     serial_port_arg = DeclareLaunchArgument(
         'serial_port',
-        default_value='/dev/ttyUSB0',
+        default_value='/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_B001X9Y7-if00-port0',
         description='Serial port for Arduino connection'
     )
 

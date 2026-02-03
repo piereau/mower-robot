@@ -13,17 +13,17 @@
 volatile bool g_controlLoopFlag = false;
 MotorControl motorControl;
 
+// Minimum duty cycle to overcome motor friction (deadband compensation)
+// 0.5 means the motor starts at 50% power for 1% command.
+#define MIN_PWM_DUTY 0.5f
+
 // =============================================================================
 // PID Controller Implementation
 // =============================================================================
 
 PIDController::PIDController()
-    : _kp(DEFAULT_KP),
-      _ki(DEFAULT_KI),
-      _kd(DEFAULT_KD),
-      _integral(0.0f),
-      _prevError(0.0f),
-      _firstRun(true) {}
+    : _kp(DEFAULT_KP), _ki(DEFAULT_KI), _kd(DEFAULT_KD), _integral(0.0f),
+      _prevError(0.0f), _firstRun(true) {}
 
 void PIDController::begin(float kp, float ki, float kd) {
   _kp = kp;
@@ -71,7 +71,7 @@ void PIDController::setGains(float kp, float ki, float kd) {
   _kd = kd;
 }
 
-void PIDController::getGains(float& kp, float& ki, float& kd) const {
+void PIDController::getGains(float &kp, float &ki, float &kd) const {
   kp = _kp;
   ki = _ki;
   kd = _kd;
@@ -96,7 +96,8 @@ WheelVelocities differentialDriveKinematics(float linear, float angular,
 
   // Clamp to max wheel speed
   result.left = constrain(result.left, -MAX_WHEEL_SPEED_MS, MAX_WHEEL_SPEED_MS);
-  result.right = constrain(result.right, -MAX_WHEEL_SPEED_MS, MAX_WHEEL_SPEED_MS);
+  result.right =
+      constrain(result.right, -MAX_WHEEL_SPEED_MS, MAX_WHEEL_SPEED_MS);
 
   return result;
 }
@@ -106,9 +107,7 @@ WheelVelocities differentialDriveKinematics(float linear, float angular,
 // =============================================================================
 
 MotorControl::MotorControl()
-    : _prevLeftTicks(0),
-      _prevRightTicks(0),
-      _lastUpdateTime(0),
+    : _prevLeftTicks(0), _prevRightTicks(0), _lastUpdateTime(0),
       _ticksPerRev(ENCODER_TICKS_PER_REV) {
   _targetVelocity.left = 0.0f;
   _targetVelocity.right = 0.0f;
@@ -136,7 +135,8 @@ void MotorControl::begin() {
 }
 
 void MotorControl::setVelocity(float linear, float angular) {
-  _targetVelocity = differentialDriveKinematics(linear, angular, WHEEL_SEPARATION_M);
+  _targetVelocity =
+      differentialDriveKinematics(linear, angular, WHEEL_SEPARATION_M);
 }
 
 void MotorControl::update(int32_t leftEncoderTicks, int32_t rightEncoderTicks) {
@@ -166,8 +166,10 @@ void MotorControl::update(int32_t leftEncoderTicks, int32_t rightEncoderTicks) {
   // Calculate PID outputs
   float dt = (float)deltaTime / 1000.0f;
 
-  float leftOutput = _leftPID.compute(_targetVelocity.left, _measuredVelocity.left, dt);
-  float rightOutput = _rightPID.compute(_targetVelocity.right, _measuredVelocity.right, dt);
+  float leftOutput =
+      _leftPID.compute(_targetVelocity.left, _measuredVelocity.left, dt);
+  float rightOutput =
+      _rightPID.compute(_targetVelocity.right, _measuredVelocity.right, dt);
 
   // Combine target velocity with PID correction for feedforward + feedback
   // Normalize to -1.0 to 1.0 range for motor output
@@ -178,12 +180,23 @@ void MotorControl::update(int32_t leftEncoderTicks, int32_t rightEncoderTicks) {
   // Direct velocity-to-PWM mapping for testing without encoder feedback
   // Target velocity is directly converted to motor command
   _lastUpdateTime = now;
-  _measuredVelocity.left = _targetVelocity.left;   // Assume we're at target
+  _measuredVelocity.left = _targetVelocity.left; // Assume we're at target
   _measuredVelocity.right = _targetVelocity.right;
 
-  // Simple proportional mapping: velocity (m/s) -> PWM (-1 to 1)
-  leftCommand = _targetVelocity.left / MAX_WHEEL_SPEED_MS;
-  rightCommand = _targetVelocity.right / MAX_WHEEL_SPEED_MS;
+  // Simple proportional mapping with deadband compensation
+  float leftRatio = _targetVelocity.left / MAX_WHEEL_SPEED_MS;
+  float rightRatio = _targetVelocity.right / MAX_WHEEL_SPEED_MS;
+
+  // Helper lambda to apply deadband
+  auto applyDeadband = [](float val) -> float {
+    if (abs(val) < 0.01f)
+      return 0.0f;
+    float sign = (val >= 0.0f) ? 1.0f : -1.0f;
+    return sign * (MIN_PWM_DUTY + (1.0f - MIN_PWM_DUTY) * abs(val));
+  };
+
+  leftCommand = applyDeadband(leftRatio);
+  rightCommand = applyDeadband(rightRatio);
 
   // Suppress unused parameter warnings in open-loop mode
   (void)leftEncoderTicks;
@@ -266,7 +279,8 @@ void MotorControl::setMotor(float speed, int in1Pin, int in2Pin, int pwmPin) {
   analogWrite(pwmPin, pwm);
 }
 
-float MotorControl::calculateWheelVelocity(int32_t deltaTicks, unsigned long deltaTimeMs) {
+float MotorControl::calculateWheelVelocity(int32_t deltaTicks,
+                                           unsigned long deltaTimeMs) {
   if (deltaTimeMs == 0 || _ticksPerRev == 0) {
     return 0.0f;
   }
@@ -314,6 +328,4 @@ void initControlLoopTimer() {
 }
 
 // Timer1 Compare Match A ISR
-ISR(TIMER1_COMPA_vect) {
-  g_controlLoopFlag = true;
-}
+ISR(TIMER1_COMPA_vect) { g_controlLoopFlag = true; }

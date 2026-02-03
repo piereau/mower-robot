@@ -4,7 +4,7 @@
 serial_bridge:
   ros__parameters:
     # Serial port configuration
-    serial_port: "/dev/ttyUSB0" # May be /dev/ttyACM0 on some systems
+    serial_port: "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_B001X9Y7-if00-port0" # Persistent ID
     baud_rate: 115200
 
     # Communication rates (Hz)
