@@ -61,7 +61,7 @@ development_status:
   epic-2: in-progress
   2-1-lidar-integration: done
   2-2-robot-description-tf: review
-  2-3-slam-mapping: backlog
+  2-3-slam-mapping: review
   2-4-map-visualization-on-dashboard: backlog
   2-5-waypoint-navigation: backlog
   2-6-obstacle-detection-avoidance: backlog

@@ -38,7 +38,7 @@ def generate_launch_description():
 
     serial_port_arg = DeclareLaunchArgument(
         'serial_port',
-        default_value='/dev/ttyACM0',
+        default_value='/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_B001X9Y7-if00-port0',
         description='Serial port for motor controller'
     )
 
@@ -46,6 +46,12 @@ def generate_launch_description():
         'lidar_port',
         default_value='/dev/serial0',
         description='Serial port for LiDAR'
+    )
+
+    use_slam_arg = DeclareLaunchArgument(
+        'use_slam',
+        default_value='false',
+        description='Launch SLAM Toolbox for mapping'
     )
 
     # =========================================================================
@@ -79,6 +85,20 @@ def generate_launch_description():
     )
 
     # =========================================================================
+    # SLAM (Mapping)
+    # =========================================================================
+    slam_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('mower_localization'),
+                'launch',
+                'slam.launch.py'
+            ])
+        ]),
+        condition=IfCondition(LaunchConfiguration('use_slam'))
+    )
+
+    # =========================================================================
     # Serial Bridge (Motor Control + Odometry + Telemetry)
     # =========================================================================
     serial_bridge_node = Node(
@@ -95,12 +115,14 @@ def generate_launch_description():
     return LaunchDescription([
         # Arguments
         use_lidar_arg,
+        use_slam_arg,
         serial_port_arg,
         lidar_port_arg,
 
         # Launch includes
         description_launch,
         lidar_launch,
+        slam_launch,
 
         # Nodes
         serial_bridge_node,
