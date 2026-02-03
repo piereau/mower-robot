@@ -83,7 +83,7 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
           mapData={mapData}
           scanData={scanData}
           robotPose={poseData}
-          className="w-full h-64 bg-gray-200 border-2 border-gray-400 border-dashed rounded-xl"
+          className="w-full h-48 bg-gray-200 border-2 border-gray-400 border-dashed rounded-xl"
           showLidar={true}
         />
       </div>
@@ -103,7 +103,7 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
       </button>
 
       {/* Joystick */}
-      <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-4">
+      <div className="flex flex-col items-center justify-center min-h-[30vh] space-y-4">
         <Joystick onMove={sendJoystick} onEnd={stop} disabled={!canControl} />
 
         {/* Alerts */}
