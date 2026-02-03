@@ -17,53 +17,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     showLidar = true
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [transform, setTransform] = React.useState({ x: 0, y: 0, k: 1 });
-    const [isDragging, setIsDragging] = React.useState(false);
-    const dragStart = useRef({ x: 0, y: 0 });
-
-    // Handle Pan/Zoom
-    const handleWheel = (e: React.WheelEvent) => {
-        e.preventDefault();
-        const sc = 0.001;
-        const newK = Math.max(0.1, Math.min(transform.k * Math.exp(-e.deltaY * sc), 50));
-        setTransform(t => ({ ...t, k: newK }));
-    };
-
-    const handlePointerDown = (e: React.PointerEvent) => {
-        (e.currentTarget as Element).setPointerCapture(e.pointerId);
-        setIsDragging(true);
-        dragStart.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
-    };
-
-    const handlePointerMove = (e: React.PointerEvent) => {
-        if (!isDragging) return;
-        setTransform(t => ({ ...t, x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y }));
-    };
-
-    const handlePointerUp = (e: React.PointerEvent) => {
-        setIsDragging(false);
-        try { (e.currentTarget as Element).releasePointerCapture(e.pointerId); } catch { }
-    };
-
-    // Initial center when map loads
-    useEffect(() => {
-        if (mapData && transform.k === 1 && transform.x === 0 && transform.y === 0) {
-            // Optional: Auto-fit logic could go here, but defaulting to 1x scale centered might be fine
-            // or we keep the previous auto-scale logic but just set the initial transform state
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-
-            const { width, height } = mapData.info;
-            const scaleX = canvas.width / width;
-            const scaleY = canvas.height / height;
-            const scale = Math.min(scaleX, scaleY) * 0.9; // 90% fit
-
-            const offsetX = (canvas.width - width * scale) / 2;
-            const offsetY = (canvas.height - height * scale) / 2;
-
-            setTransform({ x: offsetX, y: offsetY, k: scale });
-        }
-    }, [mapData]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -75,146 +28,219 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Fill background
-        ctx.fillStyle = '#e5e7eb';
+        // Fill background (Unknown space)
+        ctx.fillStyle = '#e5e7eb'; // gray-200
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         if (!mapData) {
-            ctx.fillStyle = '#6b7280';
+            // Draw placeholder text
+            ctx.fillStyle = '#6b7280'; // gray-500
             ctx.font = '16px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText('Waiting for map...', canvas.width / 2, canvas.height / 2);
             return;
         }
 
+        // --- Draw Map ---
         const { width, height, resolution, origin } = mapData.info;
         const data = mapData.data;
 
-        ctx.save();
-        ctx.translate(transform.x, transform.y);
-        ctx.scale(transform.k, transform.k);
+        // Calculate scale to fit map in canvas
+        // We want to preserve aspect ratio
+        const scaleX = canvas.width / width;
+        const scaleY = canvas.height / height;
+        const scale = Math.min(scaleX, scaleY);
 
-        // Draw Map
-        // Iterate only visible area optimization could be added here, 
-        // but for now we rely on canvas clipping for performance on reasonable map sizes.
+        // Center the map in canvas
+        const offsetX = (canvas.width - width * scale) / 2;
+        const offsetY = (canvas.height - height * scale) / 2;
 
-        // We still need the base offsets from the previous logic? 
-        // No, transform.x/y/k REPLACES the fixed scale/offset. 
-        // But we need to define what (0,0) means. 
-        // Let's assume (0,0) in canvas context AFTER transform is the top-left of the map grid.
+        // Draw Occupancy Grid
+        // Optimizing: Draw solely 1x1 rectangles for occupied/free cells is slow for strict pixel mapping?
+        // Map pixels are cells.
+        // We can iterate data.
 
+        // Standard ROS Map: 0-100 (prob), -1 (unknown).
+        // Data is row-major, starting from (0,0) which is usually bottom-left in map frame?
+        // ROS OccupancyGrid origin is the pose of the cell (0,0).
+        // If orientation is identity, rows go X+, cols go Y+? No.
+        // Standard: index = y * width + x.
+        // (x,y) corresponds to world: origin + (x*res, y*res).
+
+        // We need to transform World -> Canvas.
+        // Canvas X increases Right. Canvas Y increases Down.
+        // ROS Map usually: World Y increases Up.
+        // So we need to flip Y.
+
+        // Let's simply draw the grid first treating index roughly as x,y.
+        // Iterate y from 0 to height-1
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const i = y * width + x;
                 const val = data[i];
-                if (val === -1) continue;
 
-                if (val === 0) ctx.fillStyle = '#ffffff';
-                else if (val === 100) ctx.fillStyle = '#1f2937';
-                else {
+                if (val === -1) continue; // Unknown (already gray)
+
+                // Determine color
+                // 0 = Free (White)
+                // 100 = Occupied (Black)
+                // 1-99 = Prob
+                if (val === 0) {
+                    ctx.fillStyle = '#ffffff';
+                } else if (val === 100) {
+                    ctx.fillStyle = '#1f2937'; // gray-800
+                } else {
+                    // Gradient
                     const gray = 255 - Math.floor((val / 100) * 255);
                     ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
                 }
 
-                // Flip Y for visual consistency with standard map expectations if needed
-                // Default: Row 0 is top. 
-                // ROS: Row 0 is usually bottom (y=0).
-                // Let's draw row 0 at visual bottom: (height - 1 - y)
+                // Draw Rect
+                // Canvas Coordinates:
+                // We flip Y: row 0 is at bottom of map?
+                // Usually ROS map data row 0 is for y=0 (bottom).
+                // So we want to draw row 0 at the BOTTOM of our canvas map area.
+                // visual_y = (height - 1 - y)
 
-                ctx.fillRect(x, height - 1 - y, 1, 1);
+                const visualY = (height - 1 - y);
+
+                ctx.fillRect(
+                    offsetX + x * scale,
+                    offsetY + visualY * scale,
+                    scale,
+                    scale
+                );
             }
         }
 
-        // Helper for Lidar/Robot overlay
-        const worldToLocal = (wx: number, wy: number) => {
+        // --- Helper: World -> Canvas Transform ---
+        // World point (wx, wy)
+        // 1. To Map Cell (cx, cy):
+        //    cx = (wx - origin.x) / res
+        //    cy = (wy - origin.y) / res
+        // 2. To Visual Cell (vx, vy):
+        //    vx = cx
+        //    vy = height - 1 - cy
+        // 3. To Canvas Pixel (px, py):
+        //    px = offsetX + vx * scale
+        //    py = offsetY + vy * scale
+
+        const worldToCanvas = (wx: number, wy: number) => {
             const cx = (wx - origin.position.x) / resolution;
             const cy = (wy - origin.position.y) / resolution;
-            return { x: cx, y: height - 1 - cy };
+
+            const vx = cx;
+            const vy = height - 1 - cy; // Flip Y
+
+            return {
+                x: offsetX + vx * scale,
+                y: offsetY + vy * scale
+            };
         };
 
-        // Draw Lidar
+        // --- Draw LiDAR ---
         if (showLidar && scanData && robotPose) {
-            ctx.fillStyle = '#ef4444';
+            ctx.fillStyle = '#ef4444'; // red-500
             const angleMin = scanData.angle_min;
             const angleInc = scanData.angle_increment;
+
+            // Robot Pose + Lidar Transform?
+            // Assume scan is in robot frame (or we need TF).
+            // If we only have Robot Pose in Map frame, we assume Scan is in Robot frame (base_link).
+            // Simplified: Lidar is AT robot center (or close enough).
+
+            // Robot Pose: x, y, yaw (in Map frame).
             const rx = robotPose.x;
             const ry = robotPose.y;
             const r_yaw = robotPose.yaw;
 
             for (let i = 0; i < scanData.ranges.length; i++) {
                 const range = scanData.ranges[i];
-                if (range < scanData.range_min || range > scanData.range_max || range === 0) continue;
+
+                // Skip invalid
+                if (range < scanData.range_min || range > scanData.range_max) continue;
+                if (range === 0) continue;
 
                 const angle = angleMin + i * angleInc;
+                // Point in Robot Frame
+                // Lx = r * cos(angle)
+                // Ly = r * sin(angle)
+
                 const lx = range * Math.cos(angle);
                 const ly = range * Math.sin(angle);
+
+                // Transform to Map Frame (2D rotation + translation)
+                // Mx = rx + (Lx * cos(yaw) - Ly * sin(yaw))
+                // My = ry + (Lx * sin(yaw) + Ly * cos(yaw))
 
                 const mx = rx + (lx * Math.cos(r_yaw) - ly * Math.sin(r_yaw));
                 const my = ry + (lx * Math.sin(r_yaw) + ly * Math.cos(r_yaw));
 
-                const pt = worldToLocal(mx, my);
+                const canvasPt = worldToCanvas(mx, my);
 
-                // Draw point (radius relative to scale? No, keep fixed pixel size)
-                // To keep fixed pixel size despite zoom, we inverse scale
-                const dotSize = 2 / transform.k;
+                // Draw point
                 ctx.beginPath();
-                ctx.arc(pt.x, pt.y, dotSize, 0, 2 * Math.PI);
+                ctx.arc(canvasPt.x, canvasPt.y, 2, 0, 2 * Math.PI); // 2px radius
                 ctx.fill();
             }
         }
 
-        // Draw Robot
+        // --- Draw Robot ---
         if (robotPose) {
-            const pt = worldToLocal(robotPose.x, robotPose.y);
+            const pt = worldToCanvas(robotPose.x, robotPose.y);
 
+            // Draw Triangle
             ctx.save();
             ctx.translate(pt.x, pt.y);
-            ctx.rotate(-robotPose.yaw); // Canvas rotation
+            // Rotate: Canvas rotation also needs to account for Y flip?
+            // Map Y increases Up. Canvas Y increases Down.
+            // A positive yaw (CCW from X) in Map...
+            // In Canvas, +angle is CW (usually).
+            // And since Y is flipped, a CCW rotation in world might look different.
+            // Let's think:
+            // World: Yaw=0 -> East (X+). Yaw=90 -> North (Y+).
+            // Canvas:
+            // Start East (Right).
+            // If Yaw=90 (World Y+):
+            //   Canvas Y decreases.
+            //   So we want to point UP.
+            //   Canvas rotation of -90deg points Up.
+            // So Canvas Rot = -World Yaw.
 
-            ctx.fillStyle = '#3b82f6';
+            ctx.rotate(-robotPose.yaw);
+
+            ctx.fillStyle = '#3b82f6'; // blue-500
             ctx.beginPath();
-            // Scale robot icon size inversely so it doesn't get huge? 
-            // Or keep it physical size? Physical is better for map.
-            // Let's assume physical size: 0.5m ~ 10 pixels at res 0.05
-            // Draw relative to map units (1 unit = 1 pixel at scale 1 = 1 cell = resolution meters)
-            // Robot is approx 0.5m. Res is 0.05m. So robot is 10 units long.
-
-            ctx.moveTo(5, 0);
-            ctx.lineTo(-3, 3);
-            ctx.lineTo(-3, -3);
+            // Triangle pointing Right (East)
+            ctx.moveTo(10, 0);   // Nose
+            ctx.lineTo(-6, 6);   // Back Left
+            ctx.lineTo(-6, -6);  // Back Right
             ctx.closePath();
             ctx.fill();
 
             ctx.restore();
         }
 
-        ctx.restore();
-
-    }, [mapData, scanData, robotPose, showLidar, transform]);
+    }, [mapData, scanData, robotPose, showLidar]);
 
     return (
-        <div className={`relative rounded-lg overflow-hidden bg-gray-100 ${className} touch-none`}>
+        <div className={`relative rounded-lg overflow-hidden bg-gray-100 ${className}`}>
             <canvas
                 ref={canvasRef}
                 width={600}
-                height={600} // Internal resolution
-                className="w-full h-full object-contain cursor-move"
-                onWheel={handleWheel}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerLeave={handlePointerUp}
+                height={600}
+                className="w-full h-full object-contain"
             />
 
             {/* Legend / Status Overlay */}
-            <div className="absolute top-2 left-2 bg-white/80 p-2 rounded text-xs pointer-events-none select-none">
+            <div className="absolute top-2 left-2 bg-white/80 p-2 rounded text-xs pointer-events-none">
+                <div>RESOLUTION: {mapData?.info.resolution.toFixed(3) ?? '-'} m/px</div>
                 {robotPose && (
                     <div>
                         POSE: ({robotPose.x.toFixed(2)}, {robotPose.y.toFixed(2)})
                         θ: {(robotPose.yaw * 180 / Math.PI).toFixed(0)}°
                     </div>
                 )}
-                <div className="text-gray-500 mt-1">Scroll to Zoom • Drag to Pan</div>
             </div>
         </div>
     );

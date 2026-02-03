@@ -49,11 +49,15 @@ class LibCameraStream(CameraStream):
             str(settings.camera_height),
             "--framerate",
             str(settings.camera_fps),
-            "-t",
-            "0",
-            "-o",
-            "-",
         ]
+
+        if settings.camera_hflip:
+            cmd.append("--hflip")
+
+        if settings.camera_vflip:
+            cmd.append("--vflip")
+
+        cmd.extend(["-t", "0", "-o", "-"])
 
         process = subprocess.Popen(  # nosec B603
             cmd,

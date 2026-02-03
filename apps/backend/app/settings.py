@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     camera_width: int = 640
     camera_height: int = 480
     camera_fps: int = 15
+    camera_hflip: bool = False  # Horizontal flip
+    camera_vflip: bool = False  # Vertical flip
     
     # Server settings
     host: str = "0.0.0.0"

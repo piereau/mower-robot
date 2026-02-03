@@ -61,7 +61,7 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
         </div>
       </div>
       {/* Camera Feed */}
-      <div className="rounded-2xl bg-black/10 p-2">
+      <div className="rounded-2xl">
         {cameraError ? (
           <div className="flex h-44 items-center justify-center rounded-xl bg-black/10 text-sm text-black/60">
             Flux caméra indisponible
@@ -70,7 +70,7 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
           <img
             src={cameraUrl}
             alt="Flux caméra"
-            className="h-44 w-full rounded-xl object-cover"
+            className="h-44 w-full rounded-xl object-cover -rotate-180 border-2 border-dashed border-gray-400 "
             onError={() => setCameraError(true)}
           />
         )}
