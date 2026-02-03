@@ -51,37 +51,37 @@ function generateCorridors(config: typeof MAP_CONFIG) {
 // Robot path through corridors (continuous serpentine pattern)
 function generateRobotPath(config: typeof MAP_CONFIG) {
   const path: { x: number; y: number }[] = [];
-  
+
   // Build a continuous serpentine path through corridors A, B, C
   // Forward: A (down) -> B (up) -> C (down)
   // Return: C (up) -> B (down) -> A (up)
-  
-  const getCorridorX = (i: number) => 
+
+  const getCorridorX = (i: number) =>
     config.rowStartX + i * config.rowSpacing + config.rowSpacing / 2;
-  
+
   const top = config.rowTopY;
   const bottom = config.rowTopY + config.rowHeight;
-  
+
   // Forward pass: A (down) -> B (up) -> C (down)
   // Start at top of A
   path.push({ x: getCorridorX(0), y: top });
   path.push({ x: getCorridorX(0), y: bottom }); // End A at bottom
-  
+
   path.push({ x: getCorridorX(1), y: bottom }); // Move to B at bottom
   path.push({ x: getCorridorX(1), y: top }); // Go up B to top
-  
+
   path.push({ x: getCorridorX(2), y: top }); // Move to C at top
   path.push({ x: getCorridorX(2), y: bottom }); // Go down C to bottom
-  
+
   // Return pass: C (up) -> B (down) -> A (up)
   path.push({ x: getCorridorX(2), y: top }); // Go up C to top
-  
+
   path.push({ x: getCorridorX(1), y: top }); // Move to B at top
   path.push({ x: getCorridorX(1), y: bottom }); // Go down B to bottom
-  
+
   path.push({ x: getCorridorX(0), y: bottom }); // Move to A at bottom
   path.push({ x: getCorridorX(0), y: top }); // Go up A to top (back to start)
-  
+
   return path;
 }
 
@@ -330,14 +330,7 @@ export function MowerMap({ zoneName, onBack }: MowerMapProps) {
           </g>
         </svg>
 
-        {/* Legend overlay */}
-        <div className="absolute left-3 top-3 rounded-xl bg-white/90 px-3 py-2 text-xs backdrop-blur">
-          <div className="font-medium text-slate-800">Rangs de vignes</div>
-          <div className="text-slate-500 mt-1 flex items-center gap-2">
-            <span className="w-3 h-3 rounded bg-[#00C950]/70" />
-            <span>Couloirs en cours</span>
-          </div>
-        </div>
+
       </div>
 
       {/* Stats section */}

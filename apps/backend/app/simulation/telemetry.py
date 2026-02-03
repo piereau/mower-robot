@@ -14,19 +14,19 @@ from ..domain.models import RobotTelemetry
 # Probability weights for state transitions
 STATE_TRANSITION_WEIGHTS = {
     RobotState.IDLE: {
-        RobotState.IDLE: 0.90,
-        RobotState.MOWING: 0.09,
-        RobotState.ERROR: 0.01,
+        RobotState.IDLE: 1.00,
+        RobotState.MOWING: 0.00,
+        RobotState.ERROR: 0.00,
     },
     RobotState.MOWING: {
-        RobotState.IDLE: 0.05,
-        RobotState.MOWING: 0.93,
-        RobotState.ERROR: 0.02,
+        RobotState.IDLE: 1.00,
+        RobotState.MOWING: 0.00,
+        RobotState.ERROR: 0.00,
     },
     RobotState.ERROR: {
-        RobotState.IDLE: 0.30,
+        RobotState.IDLE: 1.00,
         RobotState.MOWING: 0.00,
-        RobotState.ERROR: 0.70,
+        RobotState.ERROR: 0.00,
     },
 }
 
@@ -119,9 +119,7 @@ class TelemetrySimulator:
         """Update battery level based on current state."""
         rate = BATTERY_CHANGE_RATES[self._state]
         
-        # Add some randomness to the rate
-        jitter = random.uniform(-0.1, 0.1)
-        self._battery += rate + jitter
+        self._battery += rate
         
         # Clamp to valid range
         self._battery = max(0, min(100, self._battery))
