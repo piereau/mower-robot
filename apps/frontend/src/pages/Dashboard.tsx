@@ -10,7 +10,6 @@ import { BatteryIndicator } from '../components/BatteryIndicator';
 import { LocationIndicator } from '../components/LocationIndicator';
 import { AutonomyIndicator } from '../components/AutonomyIndicator';
 import { ScheduleCard } from '../components/ScheduleCard';
-import { ConnectionStatus } from '../components/ConnectionStatus';
 import { ControlPanel } from '../components/ControlPanel';
 import { Loader2 } from 'lucide-react';
 import { deriveDisplayStatus } from '../types/telemetry';
@@ -48,22 +47,18 @@ export function Dashboard({ schedules, onZoneClick, onScheduleClick }: Dashboard
 
     return 'http://localhost:8000/camera/stream';
   })();
-  
+
   const showOfflineOverlay = connectionState === 'disconnected';
-  
+
   // Derive display status from telemetry
   const displayStatus = telemetry ? deriveDisplayStatus(telemetry) : null;
-  
+
   // Derive location based on status
   const location = displayStatus === 'mowing' ? 'Parcelle A1' : 'Parking';
-  
+
   return (
-    <div className="w-full max-w-md min-h-screen bg-[#d9e7f3] px-5 py-8 relative">
-      {/* Connection indicator - top right */}
-      <div className="absolute top-4 right-4">
-        <ConnectionStatus state={connectionState} />
-      </div>
-      
+    <div className="mx-auto w-full max-w-md min-h-screen bg-[#d9e7f3] px-5 py-8 relative pb-32">
+
       {activeTab === 'monitor' && (
         <>
           {/* Robot image section */}
@@ -132,29 +127,30 @@ export function Dashboard({ schedules, onZoneClick, onScheduleClick }: Dashboard
       )}
 
       {/* Tabs */}
-      <div className="mt-8 mb-6 flex gap-2 rounded-full bg-white/70 p-1 shadow-sm">
-        <button
-          onClick={() => setActiveTab('monitor')}
-          className={`flex-1 rounded-full py-2 text-sm font-medium ${
-            activeTab === 'monitor'
-              ? 'bg-black text-white'
-              : 'text-black/70'
-          }`}
-        >
-          Monitor
-        </button>
-        <button
-          onClick={() => setActiveTab('control')}
-          className={`flex-1 rounded-full py-2 text-sm font-medium ${
-            activeTab === 'control'
-              ? 'bg-black text-white'
-              : 'text-black/70'
-          }`}
-        >
-          Control
-        </button>
+      {/* Bottom Tabs */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-md px-5 z-20">
+        <div className="flex gap-2 rounded-full bg-white/90 p-1 shadow-lg backdrop-blur-sm">
+          <button
+            onClick={() => setActiveTab('monitor')}
+            className={`flex-1 rounded-full py-3 text-sm font-medium transition-all ${activeTab === 'monitor'
+              ? 'bg-black text-white shadow-md'
+              : 'text-black/60 hover:bg-black/5'
+              }`}
+          >
+            Monitor
+          </button>
+          <button
+            onClick={() => setActiveTab('control')}
+            className={`flex-1 rounded-full py-3 text-sm font-medium transition-all ${activeTab === 'control'
+              ? 'bg-black text-white shadow-md'
+              : 'text-black/60 hover:bg-black/5'
+              }`}
+          >
+            Control
+          </button>
+        </div>
       </div>
-      
+
       {/* Offline overlay */}
       {showOfflineOverlay && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-6 z-50">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Joystick } from './Joystick';
 import { useRobotControl } from '../hooks/useRobotControl';
 import { useRobotTelemetry } from '../hooks/useRobotTelemetry';
@@ -13,24 +13,16 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
   const { telemetry, connectionState } = useRobotTelemetry();
   const [cameraError, setCameraError] = useState(false);
   const [estopActive, setEstopActive] = useState(false);
-  const [currentSpeed, setCurrentSpeed] = useState({ linear: 0, angular: 0 });
 
   // Extract bridge status from telemetry
   const telemetryExtended = telemetry as unknown as Record<string, unknown> | null;
   const bridgeConnected = telemetryExtended?.bridge_connected === true;
+  /*
   const bridgeStatus = telemetryExtended?.bridge_status as
     | { linear_vel?: number; angular_vel?: number }
     | undefined;
+  */
 
-  // Update speed from telemetry
-  useEffect(() => {
-    if (bridgeStatus) {
-      setCurrentSpeed({
-        linear: bridgeStatus.linear_vel ?? 0,
-        angular: bridgeStatus.angular_vel ?? 0,
-      });
-    }
-  }, [bridgeStatus]);
 
   const handleEstop = () => {
     if (estopActive) {
@@ -84,6 +76,7 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
       </div>
 
       {/* Speed Display */}
+      {/* Speed Display - Hidden for now
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-white/80 p-3 text-center">
           <div className="text-xs text-black/60 uppercase tracking-wider">Vitesse</div>
@@ -100,6 +93,7 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
           <div className="text-xs text-black/50">rad/s</div>
         </div>
       </div>
+      */}
 
       {/* E-Stop Button */}
       <button
@@ -114,14 +108,9 @@ export function ControlPanel({ cameraUrl }: ControlPanelProps) {
       </button>
 
       {/* Joystick */}
-      <div className="space-y-2">
-        <h2 className="text-xl font-medium tracking-tight text-black text-center">
-          Joystick
-        </h2>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
         <Joystick onMove={sendJoystick} onEnd={stop} disabled={!canControl} />
-        <p className="text-xs text-black/60 text-center">
-          Haut = avance, bas = recule, gauche/droite = tourne.
-        </p>
+
         {!isConnected && (
           <p className="text-xs text-red-600 text-center">
             ⚠️ WebSocket non connectée

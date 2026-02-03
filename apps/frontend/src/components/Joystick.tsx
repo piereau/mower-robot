@@ -11,7 +11,7 @@ type Position = {
   y: number;
 };
 
-const KNOB_SIZE = 64;
+const KNOB_SIZE = 80;
 
 export function Joystick({ onMove, onEnd, disabled = false }: JoystickProps) {
   const baseRef = useRef<HTMLDivElement | null>(null);
@@ -84,9 +84,8 @@ export function Joystick({ onMove, onEnd, disabled = false }: JoystickProps) {
     <div className="w-full">
       <div
         ref={baseRef}
-        className={`relative mx-auto h-52 w-52 rounded-full border-2 border-black/20 bg-white/70 shadow-inner ${
-          disabled ? 'opacity-50' : ''
-        }`}
+        className={`relative mx-auto h-72 w-72 rounded-full border-2 border-black/20 bg-white/70 shadow-inner ${disabled ? 'opacity-50' : ''
+          }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
