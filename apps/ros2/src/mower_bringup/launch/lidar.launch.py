@@ -6,6 +6,10 @@ connected via RPi GPIO serial (/dev/serial0).
 
 Story: 2.1 LiDAR Integration
 AC: 1, 2 - Publishes sensor_msgs/LaserScan to /scan at 8-15Hz
+
+Note: TF transform base_link -> laser_frame is now provided by
+      robot_state_publisher via URDF (mower_description package).
+      See: Story 2.2 Robot Description & TF
 """
 
 from launch import LaunchDescription
@@ -58,23 +62,13 @@ def generate_launch_description():
         }]
     )
 
-    # Static transform: base_link -> laser_frame
-    # Position: 15cm forward, 0cm lateral, 10cm height (adjust to physical mount)
-    base_to_laser_tf = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='base_link_to_laser_frame',
-        arguments=[
-            '0.15', '0', '0.10',  # x, y, z translation
-            '0', '0', '0',        # roll, pitch, yaw rotation
-            'base_link', 'laser_frame'
-        ]
-    )
+    # Note: Static TF (base_link -> laser_frame) removed in Story 2.2
+    # TF now published by robot_state_publisher from URDF
 
     return LaunchDescription([
         serial_port_arg,
         frame_id_arg,
         topic_name_arg,
         ldlidar_node,
-        base_to_laser_tf,
     ])
+
