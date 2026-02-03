@@ -7,11 +7,11 @@ Requires=network.target
 Type=simple
 User=pi
 Environment="ROS_DOMAIN_ID=0"
-ExecStart=/bin/bash -c 'source /opt/ros/humble/setup.bash && source /home/pi/mower-roboto/ros2/install/setup.bash && ros2 launch mower_bringup serial_bridge.launch.py'
-Restart=always
-RestartSec=5
 StandardOutput=journal
 StandardError=journal
+Environment="SERIAL_PORT=/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_B001X9Y7-if00-port0"
+Environment="BAUD_RATE=115200"
+ExecStart=/bin/bash -c 'source /opt/ros/humble/setup.bash && source /home/pi/mower-roboto/ros2/install/setup.bash && ros2 launch mower_bringup serial_bridge.launch.py serial_port:=$SERIAL_PORT baud_rate:=$BAUD_RATE'
 
 [Install]
 WantedBy=multi-user.target

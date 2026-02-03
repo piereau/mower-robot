@@ -56,7 +56,8 @@ async def broadcast_telemetry() -> None:
                 
                 # Log bridge status occasionally
                 if current_time - last_log_time > 5.0 and bridge.connected:
-                     logger.info(f"Bridge connected: {bridge.connected}")
+                    pass
+
 
                 if bridge.connected:
                     telemetry_dict['bridge_connected'] = True

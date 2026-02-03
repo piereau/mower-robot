@@ -17,4 +17,4 @@ serial_bridge:
     # Wheel odometry parameters
     # WARNING: These are placeholder values - calibrate with real hardware!
     wheel_separation: 0.3 # Track width in meters
-    ticks_per_meter: 1000 # Encoder ticks per meter traveled
+    ticks_per_meter: 1000.0 # Encoder ticks per meter traveled

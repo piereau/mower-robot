@@ -10,6 +10,11 @@ ExecStart=/home/pi/mower-roboto/backend/venv/bin/uvicorn app.main:app --host 0.0
 Restart=always
 RestartSec=2
 Environment="PATH=/home/pi/mower-roboto/backend/venv/bin:/usr/local/bin:/usr/bin"
+Environment="USE_MOCK_CAMERA=false"
+Environment="USE_MOCK_MOTOR_CONTROLLER=false"
+Environment="CAMERA_HFLIP=true"
+Environment="CAMERA_WIDTH=320"
+Environment="CAMERA_HEIGHT=240"
 
 [Install]
 WantedBy=multi-user.target
